@@ -5,9 +5,11 @@ import Quill from 'quill';
 import uniqid from 'uniqid';
 import axios from 'axios'
 import { AppContext } from '../../context/AppContext';
+import { useParams } from 'react-router-dom';
 
 const AddCourse = () => {
 
+  const { courseId } = useParams();
   const editorRef = useRef(null);
   const quillRef = useRef(null);
 
@@ -91,49 +93,97 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-
-      e.preventDefault();
-
+      // 1. Validation
       if (!image) {
-        toast.error('Thumbnail Not Selected')
+        toast.error('Thumbnail Not Selected');
+        return; // Important: Stop execution if no image
       }
 
+      // 2. Prepare Data
       const courseData = {
         courseTitle,
         courseDescription: quillRef.current.root.innerHTML,
         coursePrice: Number(coursePrice),
         discount: Number(discount),
         courseContent: chapters,
+      };
+
+      const formData = new FormData();
+      formData.append('courseData', JSON.stringify(courseData));
+      formData.append('image', image);
+
+      // 3. API Call (Add or Update)
+      const token = await getToken();
+      
+      if (courseId) {
+        // --- EDIT MODE ---
+        formData.append('courseId', courseId);
+        const { data } = await axios.post(
+          backendUrl + '/api/educator/update-course',
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (data.success) {
+           toast.success(data.message);
+        } else {
+           toast.error(data.message);
+        }
+      } else {
+        // --- ADD MODE ---
+        const { data } = await axios.post(
+          backendUrl + '/api/educator/add-course',
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (data.success) {
+          toast.success(data.message);
+          // Reset form only if adding a new course
+          setCourseTitle("");
+          setCoursePrice(0);
+          setDiscount(0);
+          setImage(null);
+          setChapters([]);
+          if(quillRef.current) quillRef.current.root.innerHTML = "";
+        } else {
+          toast.error(data.message);
+        }
       }
 
-      const formData = new FormData()
-      formData.append('courseData', JSON.stringify(courseData))
-      formData.append('image', image)
-
-      const token = await getToken()
-
-      const { data } = await axios.post(backendUrl + '/api/educator/add-course', formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      if (data.success) {
-        toast.success(data.message)
-        setCourseTitle('')
-        setCoursePrice(0)
-        setDiscount(0)
-        setImage(null)
-        setChapters([])
-        quillRef.current.root.innerHTML = ""
-      } else (
-        toast.error(data.message)
-      )
-
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.message);
     }
-
   };
+ 
+  // Add this useEffect to load data if editing
+useEffect(() => {
+  if (courseId) {
+    const fetchCourseData = async () => {
+      try {
+        const token = await getToken();
+        const { data } = await axios.get(backendUrl + '/api/course/' + courseId);
+        
+        if (data.success) {
+          const course = data.courseData;
+          setCourseTitle(course.courseTitle);
+          setCoursePrice(course.coursePrice);
+          setDiscount(course.discount);
+          setImage(course.courseThumbnail);
+          setChapters(course.courseContent);
+          if (quillRef.current) {
+             quillRef.current.root.innerHTML = course.courseDescription;
+          }
+        }
+      } catch (error) {
+        toast.error("Failed to load course");
+      }
+    };
+    fetchCourseData();
+  }
+}, [courseId]);
 
   useEffect(() => {
     // Initiate Quill only once
@@ -172,7 +222,13 @@ const AddCourse = () => {
             <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
               <img src={assets.file_upload_icon} alt="" className='p-3 bg-blue-500 rounded' />
               <input type="file" id='thumbnailImage' onChange={e => setImage(e.target.files[0])} accept="image/*" hidden />
-              <img className='max-h-10' src={image ? URL.createObjectURL(image) : ''} alt="" />
+              {/* ------------ FIX START: Handle both File object and URL String ------------ */}
+              <img 
+                 className='max-h-10' 
+                 src={image instanceof File ? URL.createObjectURL(image) : image} 
+                 alt="" 
+              />
+              {/* ------------ FIX END ------------ */}
             </label>
           </div>
         </div>
@@ -259,9 +315,9 @@ const AddCourse = () => {
           )}
         </div>
 
-        <button type="submit" className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>
-          ADD
-        </button>
+       <button type="submit" className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>
+         {courseId ? 'UPDATE' : 'ADD'}
+       </button>
       </form>
     </div>
   );
