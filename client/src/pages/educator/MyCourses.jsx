@@ -6,7 +6,7 @@ import Loading from '../../components/student/Loading';
 
 const MyCourses = () => {
 
-  const { backendUrl, isEducator, currency, getToken } = useContext(AppContext)
+  const { backendUrl, isEducator, currency, getToken, navigate} = useContext(AppContext)
 
   const [courses, setCourses] = useState(null)
 
@@ -57,6 +57,14 @@ const MyCourses = () => {
                   <td className="px-4 py-3">{course.enrolledStudents.length}</td>
                   <td className="px-4 py-3">
                     {new Date(course.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                      <button 
+                          onClick={() => navigate('/educator/edit-course/' + course._id)}
+                          className="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                      >
+                          Edit
+                      </button>
                   </td>
                 </tr>
               ))}
