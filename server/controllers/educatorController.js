@@ -3,7 +3,6 @@ import Course from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
 import User from '../models/User.js';
 import { clerkClient } from '@clerk/express'
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // update role to educator
 export const updateRoleToEducator = async (req, res) => {
@@ -198,43 +197,6 @@ export const updateCourse = async (req, res) => {
 
     } catch (error) {
         console.error("Update Error:", error); // Log the error to terminal
-        res.json({ success: false, message: error.message });
-    }
-}
-
-export const generateCourseContent = async (req, res) => {
-    try {
-        const { topic } = req.body;
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const prompt = `Generate a course syllabus for "${topic}". 
-        Return ONLY a valid JSON array of objects. 
-        Each object represents a chapter and must have:
-        - "chapterTitle" (string)
-        - "chapterContent" (array of lecture objects).
-        
-        Each lecture object must have:
-        - "lectureTitle" (string)
-        - "lectureDuration" (number, approx minutes)
-        - "lectureUrl" (use an empty string "")
-        - "isPreviewFree" (boolean, default false)
-        - "lectureOrder" (number)
-        
-        Do not include markdown formatting (like \`\`\`json). Just the raw JSON array.`;
-
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
-        
-        // Clean up markdown if AI adds it
-        const cleanJson = text.replace(/```json/g, '').replace(/```/g, '');
-        const chapters = JSON.parse(cleanJson);
-
-        res.json({ success: true, chapters });
-
-    } catch (error) {
-        console.error(error);
         res.json({ success: false, message: error.message });
     }
 }
