@@ -91,6 +91,47 @@ const AddCourse = () => {
       isPreviewFree: false,
     });
   };
+  
+   const handleAiGenerate = async () => {
+    const topic = prompt("What is the topic of your course? (e.g., 'Advanced Python')");
+    if (!topic) return;
+
+    try {
+        const token = await getToken();
+        toast.loading("Generating course structure... (This takes a few seconds)");
+        
+        const { data } = await axios.post(
+            backendUrl + '/api/educator/generate-course',
+            { topic },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        toast.dismiss(); // Remove loading toast
+
+        if (data.success) {
+            // Add unique IDs to the generated chapters/lectures
+            const aiChapters = data.chapters.map(chapter => ({
+                ...chapter,
+                chapterId: uniqid(),
+                collapsed: false,
+                chapterOrder: chapters.length + 1, // Append to end
+                chapterContent: chapter.chapterContent.map(lecture => ({
+                    ...lecture,
+                    lectureId: uniqid()
+                }))
+            }));
+            
+            setChapters([...chapters, ...aiChapters]);
+            toast.success("Course generated successfully!");
+        } else {
+            toast.error(data.message);
+        }
+    } catch (error) {
+        toast.dismiss();
+        toast.error(error.message);
+    }
+  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -265,8 +306,16 @@ useEffect(() => {
               )}
             </div>
           ))}
-          <div className="flex justify-center items-center bg-blue-100 p-2 rounded-lg cursor-pointer" onClick={() => handleChapter('add')}>
-            + Add Chapter
+          <div className="flex gap-4 mt-4">
+             {/* Add Chapter Button */}
+             <div className="flex-1 flex justify-center items-center bg-blue-100 p-2 rounded-lg cursor-pointer hover:bg-blue-200 transition-all" onClick={() => handleChapter('add')}>
+               + Add Chapter
+             </div>
+
+             {/* AI Generate Button */}
+             <div className="flex-1 flex justify-center items-center bg-purple-100 text-purple-600 p-2 rounded-lg cursor-pointer hover:bg-purple-200 transition-all" onClick={handleAiGenerate}>
+               ✨ Generate with AI
+             </div>
           </div>
 
           {showPopup && (
