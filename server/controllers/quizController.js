@@ -16,7 +16,7 @@ export const generateQuiz = async (req, res) => {
         const base64Data = fileData.toString("base64");
         
         // Use the stable model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = `
             You are an educational AI. Analyze the attached document and generate a quiz.
