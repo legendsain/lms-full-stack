@@ -3,6 +3,7 @@ import { AppContext } from '../../context/AppContext'
 import axios from 'axios'
 import { Line } from 'rc-progress';
 import Footer from '../../components/student/Footer';
+import { toast } from 'react-toastify'; // Added toast import just in case, though usually global
 
 const MyEnrollments = () => {
 
@@ -53,7 +54,6 @@ const MyEnrollments = () => {
 
     return (
         <>
-
             <div className='md:px-36 px-8 pt-10'>
 
                 <h1 className='text-2xl font-semibold'>My Enrollments</h1>
@@ -83,8 +83,19 @@ const MyEnrollments = () => {
                                     <span className='text-xs ml-2'>Lectures</span>
                                 </td>
                                 <td className="px-4 py-3 max-sm:text-right">
-                                    <button onClick={() => navigate('/player/' + course._id)} className='px-3 sm:px-5 py-1.5 sm:py-2 bg-blue-600 max-sm:text-xs text-white'>
+                                    <button 
+                                        onClick={() => navigate('/player/' + course._id)} 
+                                        className='px-3 sm:px-5 py-1.5 sm:py-2 bg-blue-600 max-sm:text-xs text-white'
+                                    >
                                         {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 ? 'Completed' : 'On Going'}
+                                    </button>
+
+                                    {/* --- NEW: Take Quiz Button --- */}
+                                    <button 
+                                        onClick={() => navigate('/course/' + course._id + '/quiz')}
+                                        className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-green-600 max-sm:text-xs text-white'
+                                    >
+                                        Take Quiz
                                     </button>
                                 </td>
                             </tr>

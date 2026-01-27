@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Footer from '../../components/student/Footer';
 import { assets } from '../../assets/assets';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom'; // 1. Added useNavigate
 import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
@@ -13,6 +13,7 @@ import Loading from '../../components/student/Loading';
 const CourseDetails = () => {
 
   const { id } = useParams()
+  const navigate = useNavigate() // 2. Initialize navigate function
 
   const [courseData, setCourseData] = useState(null)
   const [playerData, setPlayerData] = useState(null)
@@ -23,23 +24,16 @@ const CourseDetails = () => {
 
 
   const fetchCourseData = async () => {
-
     try {
-
       const { data } = await axios.get(backendUrl + '/api/course/' + id)
-
       if (data.success) {
         setCourseData(data.courseData)
       } else {
         toast.error(data.message)
       }
-
     } catch (error) {
-
       toast.error(error.message)
-
     }
-
   }
 
   const [openSections, setOpenSections] = useState({});
@@ -53,31 +47,24 @@ const CourseDetails = () => {
 
 
   const enrollCourse = async () => {
-
     try {
-
       if (!userData) {
         return toast.warn('Login to Enroll')
       }
-
       if (isAlreadyEnrolled) {
         return toast.warn('Already Enrolled')
       }
-
       const token = await getToken();
-
       const { data } = await axios.post(backendUrl + '/api/user/purchase',
         { courseId: courseData._id },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-
       if (data.success) {
         const { session_url } = data
         window.location.replace(session_url)
       } else {
         toast.error(data.message)
       }
-
     } catch (error) {
       toast.error(error.message)
     }
@@ -88,11 +75,9 @@ const CourseDetails = () => {
   }, [])
 
   useEffect(() => {
-
     if (userData && courseData) {
       setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id))
     }
-
   }, [userData, courseData])
 
   return courseData ? (
@@ -201,17 +186,21 @@ const CourseDetails = () => {
                 <p>{calculateNoOfLectures(courseData)} lessons</p>
               </div>
             </div>
+            
             <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
+            
+            {/* Take Quiz Button */}
             {isAlreadyEnrolled && (
               <button 
-                onClick={() => navigate('/course/' + courseData._id + '/quiz')}
+                onClick={() => navigate('/course/' + courseData._id + '/quiz')} 
                 className="md:mt-4 mt-2 w-full py-3 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all"
               >
                 Take Quiz
               </button>
             )}
+
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">What's in the course?</p>
               <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500">
