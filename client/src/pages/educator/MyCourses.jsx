@@ -65,6 +65,14 @@ const MyCourses = () => {
                       >
                           Edit
                       </button>
+
+                      {/* Added Quiz Button */}
+                      <button 
+                          onClick={() => navigate('/educator/quiz/' + course._id)}
+                          className="px-3 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200 ml-2"
+                      >
+                          Quiz
+                      </button>
                   </td>
                 </tr>
               ))}

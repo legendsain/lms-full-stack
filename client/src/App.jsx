@@ -15,6 +15,8 @@ import { ToastContainer } from 'react-toastify'
 import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
+import ManageQuiz from './pages/educator/ManageQuiz' // <--- 1. Import ManageQuiz
+import QuizPlayer from './pages/student/QuizPlayer' // <--- 2. Import QuizPlayer
 
 const App = () => {
 
@@ -33,12 +35,19 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
+        
+        {/* 3. Add Student Quiz Route */}
+        <Route path="/course/:courseId/quiz" element={<QuizPlayer />} />
+
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
           <Route path='edit-course/:courseId' element={<AddCourse />} />
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
+          
+          {/* 4. Add Educator Quiz Route */}
+          <Route path='quiz/:courseId' element={<ManageQuiz />} />
         </Route>
       </Routes>
     </div>

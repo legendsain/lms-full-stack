@@ -204,6 +204,14 @@ const CourseDetails = () => {
             <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
+            {isAlreadyEnrolled && (
+              <button 
+                onClick={() => navigate('/course/' + courseData._id + '/quiz')}
+                className="md:mt-4 mt-2 w-full py-3 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all"
+              >
+                Take Quiz
+              </button>
+            )}
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">What's in the course?</p>
               <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500">
