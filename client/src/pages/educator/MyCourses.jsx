@@ -66,12 +66,19 @@ const MyCourses = () => {
                           Edit
                       </button>
 
-                      {/* Added Quiz Button */}
                       <button 
                           onClick={() => navigate('/educator/quiz/' + course._id)}
                           className="px-3 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200 ml-2"
                       >
                           Quiz
+                      </button>
+                      
+                      {/* Added Teams Button for Peer Grouping */}
+                      <button 
+                          onClick={() => navigate('/educator/groups/' + course._id)}
+                          className="px-3 py-1 bg-indigo-100 text-indigo-600 rounded hover:bg-indigo-200 ml-2"
+                      >
+                          Teams
                       </button>
                   </td>
                 </tr>

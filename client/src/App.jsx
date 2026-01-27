@@ -17,6 +17,9 @@ import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
 import ManageQuiz from './pages/educator/ManageQuiz'
 import QuizPlayer from './pages/student/QuizPlayer'
+import GroupGenerator from './pages/educator/GroupGenerator'; // <--- Import
+
+
 
 const App = () => {
 
@@ -48,6 +51,9 @@ const App = () => {
           
           {/* Educator Quiz Route */}
           <Route path='quiz/:courseId' element={<ManageQuiz />} />
+
+          <Route path='groups/:courseId' element={<GroupGenerator />} />
+          
         </Route>
       </Routes>
     </div>
