@@ -23,4 +23,6 @@ educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsDat
 
 educatorRouter.post('/update-course', upload.single('image'), protectEducator, updateCourse);
 
+// --- NEW DELETE ROUTE ---
+educatorRouter.delete('/delete-course/:id', deleteCourse);
 export default educatorRouter;

@@ -200,3 +200,30 @@ export const updateCourse = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
+
+
+// Delete Course
+export const deleteCourse = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const educatorId = req.auth.userId; // From Clerk Middleware
+
+        const course = await Course.findById(id);
+
+        if (!course) {
+            return res.json({ success: false, message: "Course not found" });
+        }
+
+        // Security Check: Ensure the educator deleting it OWNS it
+        if (course.educatorId !== educatorId) {
+            return res.json({ success: false, message: "Unauthorized: You do not own this course" });
+        }
+
+        await Course.findByIdAndDelete(id);
+
+        res.json({ success: true, message: "Course deleted successfully" });
+
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
