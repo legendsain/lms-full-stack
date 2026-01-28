@@ -10,10 +10,10 @@ import educatorRouter from './routes/educatorRoutes.js'
 import courseRouter from './routes/courseRoute.js'
 import quizRouter from './routes/quizRoutes.js' // <--- 1. Import Quiz Router
 import groupRouter from './routes/groupRoutes.js'; // <--- Import
+import careerRouter from './routes/careerRoutes.js';
 
 
 
-// ...
 // Initialize Express
 const app = express()
 
@@ -34,6 +34,7 @@ app.use('/api/course', express.json(), courseRouter)
 app.use('/api/user', express.json(), userRouter)
 app.use('/api/quiz', express.json(), quizRouter) // <--- 2. Use Quiz Router
 app.use('/api/group', express.json(), groupRouter); // <--- Use
+app.use('/api/career', careerRouter);
 
 // Port
 const PORT = process.env.PORT || 5000

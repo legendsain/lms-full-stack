@@ -17,8 +17,9 @@ import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
 import ManageQuiz from './pages/educator/ManageQuiz'
 import QuizPlayer from './pages/student/QuizPlayer'
-import StudentTeams from './pages/student/StudentTeams' // Ensure this is imported
-import GroupGenerator from './pages/educator/GroupGenerator' // Ensure this is imported
+import StudentTeams from './pages/student/StudentTeams'
+import GroupGenerator from './pages/educator/GroupGenerator'
+import CareerDashboard from './pages/student/CareerDashboard' // Imported correctly
 
 const App = () => {
 
@@ -40,11 +41,12 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
+        <Route path="/career-dashboard" element={<CareerDashboard />} /> {/* Grouped here */}
         
         {/* Quiz Routes */}
         <Route path="/course/:courseId/quiz" element={<QuizPlayer />} />
         
-        {/* Teams Route (MOVED HERE - OUTSIDE EDUCATOR) */}
+        {/* Teams Route */}
         <Route path="/student/teams/:courseId" element={<StudentTeams />} />
 
 
