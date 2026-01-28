@@ -114,6 +114,9 @@ const AddCourse = () => {
       
       // If editing, use PUT. If adding, use POST.
       if (courseId) {
+          // --- CRITICAL FIX: Append the courseId so the backend knows what to update ---
+          formData.append('courseId', courseId)
+          
           const { data } = await axios.post(backendUrl + '/api/educator/update-course', formData, { headers: { Authorization: `Bearer ${token}` } })
           if (data.success) {
             toast.success(data.message)
@@ -289,4 +292,4 @@ const AddCourse = () => {
   )
 }
 
-export default AddCourse
+export default AddCourse;
