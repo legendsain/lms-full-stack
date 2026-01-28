@@ -227,3 +227,20 @@ export const deleteCourse = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+// ... existing imports
+
+// Get Single Course for Educator (With all URLs)
+export const getEducatorCourse = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const course = await Course.findById(id);
+        
+        if (!course) {
+            return res.json({ success: false, message: "Course not found" });
+        }
+        
+        res.json({ success: true, courseData: course });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};

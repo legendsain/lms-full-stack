@@ -171,12 +171,13 @@ const AddCourse = () => {
       });
     }
   }, []);
-
-  useEffect(() => {
+  
+    useEffect(() => {
     const fetchCourseData = async () => {
         try {
             const token = await getToken()
-            const { data } = await axios.get(backendUrl + '/api/course/' + courseId, { headers: { Authorization: `Bearer ${token}` } })
+            // CHANGE: Use the educator-specific endpoint
+            const { data } = await axios.get(backendUrl + '/api/educator/course/' + courseId, { headers: { Authorization: `Bearer ${token}` } })
             
             if (data.success && data.courseData) {
                 const course = data.courseData
@@ -184,13 +185,13 @@ const AddCourse = () => {
                 setCoursePrice(course.coursePrice)
                 setDiscount(course.discount)
                 setImage(course.courseThumbnail)
-                
-                // IMPORTANT: Load chapters as-is from database
                 setChapters(course.courseContent)
                 
                 if (quillRef.current) {
                     quillRef.current.root.innerHTML = course.courseDescription
                 }
+            } else {
+                toast.error("Could not fetch course data for editing.")
             }
         } catch (error) {
             toast.error(error.message)
@@ -200,7 +201,7 @@ const AddCourse = () => {
     if (courseId) {
         fetchCourseData()
     }
-  }, [courseId])
+  }, [courseId, backendUrl, getToken])
 
   return (
     <div className="h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gray-50">
