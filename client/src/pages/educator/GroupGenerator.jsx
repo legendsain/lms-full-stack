@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
 import Loading from '../../components/student/Loading';
+import { assets } from '../../assets/assets'; // Make sure you have assets imported for icons if needed, or use text
 
 const GroupGenerator = () => {
     const { courseId } = useParams();
@@ -11,12 +12,12 @@ const GroupGenerator = () => {
     
     // Data States
     const [quizzes, setQuizzes] = useState([]);
-    const [batches, setBatches] = useState([]); // List of saved records
-    const [groups, setGroups] = useState([]);   // Current displayed teams
+    const [batches, setBatches] = useState([]);
+    const [groups, setGroups] = useState([]);
 
     // Selection States
     const [selectedQuiz, setSelectedQuiz] = useState('');
-    const [selectedBatch, setSelectedBatch] = useState(null); // Which record are we viewing?
+    const [selectedBatch, setSelectedBatch] = useState(null);
 
     // Input States
     const [numberOfTeams, setNumberOfTeams] = useState(2);
@@ -41,7 +42,7 @@ const GroupGenerator = () => {
         fetchQuizzes();
     }, [courseId, backendUrl, getToken]);
 
-    // 2. Fetch Saved Batches when Quiz Changes
+    // 2. Fetch Saved Batches
     useEffect(() => {
         if (!selectedQuiz) return;
         fetchBatches();
@@ -54,25 +55,25 @@ const GroupGenerator = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (data.success) setBatches(data.batches);
-            setGroups([]); // Clear display
+            setGroups([]); 
             setSelectedBatch(null);
         } catch (error) { console.error(error); }
     };
 
-    // 3. Create New Groups
+    // 3. Create Groups
     const handleCreateGroups = async () => {
         setLoading(true);
         try {
             const token = await getToken();
             const { data } = await axios.post(backendUrl + '/api/group/create', 
-                { courseId, quizId: selectedQuiz, numberOfGroups: numberOfTeams, batchTitle }, // Using Number of Teams
+                { courseId, quizId: selectedQuiz, numberOfGroups: numberOfTeams, batchTitle },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             
             if (data.success) {
                 toast.success(data.message);
-                setBatchTitle(""); // Reset
-                fetchBatches(); // Refresh list
+                setBatchTitle(""); 
+                fetchBatches(); 
             } else {
                 toast.error(data.message);
             }
@@ -80,7 +81,7 @@ const GroupGenerator = () => {
         setLoading(false);
     };
 
-    // 4. Load a Saved Batch
+    // 4. Load a Batch
     const loadBatch = async (batch) => {
         setLoading(true);
         try {
@@ -96,6 +97,32 @@ const GroupGenerator = () => {
         setLoading(false);
     };
 
+    // 5. DELETE Batch (NEW)
+    const handleDeleteBatch = async (batchId, e) => {
+        e.stopPropagation(); // Prevent triggering the "loadBatch" click event
+        if(!window.confirm("Are you sure you want to delete this team record?")) return;
+
+        try {
+            const token = await getToken();
+            const { data } = await axios.delete(backendUrl + `/api/group/batch/${batchId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success("Record deleted");
+                fetchBatches(); // Refresh list
+                if (selectedBatch?.batchId === batchId) {
+                    setGroups([]); // Clear view if we deleted the active one
+                    setSelectedBatch(null);
+                }
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
             <div className="max-w-6xl mx-auto">
@@ -104,7 +131,6 @@ const GroupGenerator = () => {
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">Team Builder</h1>
                 <p className="text-gray-500 mb-8">Create balanced student groups based on quiz performance.</p>
 
-                {/* --- CONTROLS SECTION --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     
                     {/* LEFT: Generator */}
@@ -132,7 +158,6 @@ const GroupGenerator = () => {
                                         {loading ? "Creating..." : "Create Teams"}
                                     </button>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-2">*Note: Only a student's first quiz attempt is used for scoring.</p>
                             </div>
                         </div>
                     </div>
@@ -151,13 +176,23 @@ const GroupGenerator = () => {
                                     <div 
                                         key={batch.batchId} 
                                         onClick={() => loadBatch(batch)}
-                                        className={`p-3 rounded-lg border cursor-pointer transition flex justify-between items-center ${selectedBatch?.batchId === batch.batchId ? 'bg-indigo-50 border-indigo-500' : 'hover:bg-gray-50 border-gray-200'}`}
+                                        className={`p-3 rounded-lg border cursor-pointer transition flex justify-between items-center group ${selectedBatch?.batchId === batch.batchId ? 'bg-indigo-50 border-indigo-500' : 'hover:bg-gray-50 border-gray-200'}`}
                                     >
-                                        <div>
+                                        <div className="flex-1">
                                             <h4 className="font-semibold text-gray-800 text-sm">{batch.batchTitle}</h4>
                                             <p className="text-xs text-gray-500">{new Date(batch.createdAt).toLocaleDateString()} • {batch.teamCount} Teams</p>
                                         </div>
-                                        <span className="text-indigo-600 text-lg">→</span>
+                                        
+                                        {/* DELETE BUTTON */}
+                                        <button 
+                                            onClick={(e) => handleDeleteBatch(batch.batchId, e)}
+                                            className="ml-2 text-gray-300 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition"
+                                            title="Delete Record"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -165,7 +200,7 @@ const GroupGenerator = () => {
                     </div>
                 </div>
 
-                {/* --- DISPLAY AREA --- */}
+                {/* DISPLAY AREA */}
                 {groups.length > 0 && (
                     <div>
                         <h2 className="text-xl font-bold text-gray-800 mb-4">

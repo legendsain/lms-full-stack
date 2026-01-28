@@ -2,10 +2,10 @@ import QuizResult from "../models/QuizResult.js";
 import StudyGroup from "../models/StudyGroup.js";
 import User from "../models/User.js";
 
-// 1. Create Groups (Updated)
+// 1. Create Groups (Generates Balanced Teams)
 export const createGroups = async (req, res) => {
     try {
-        const { courseId, quizId, numberOfGroups, batchTitle } = req.body; // Changed input
+        const { courseId, quizId, numberOfGroups, batchTitle } = req.body;
 
         // A. Fetch Results (Sort by Date ASC to get First Attempt)
         const allResults = await QuizResult.find({ quizId }).sort({ date: 1 });
@@ -19,7 +19,6 @@ export const createGroups = async (req, res) => {
         
         for (const result of allResults) {
             if (!uniqueStudentsMap.has(result.userId)) {
-                // Fetch user details for this result
                 const user = await User.findById(result.userId);
                 uniqueStudentsMap.set(result.userId, {
                     userId: result.userId,
@@ -43,7 +42,7 @@ export const createGroups = async (req, res) => {
         const batchId = Date.now().toString();
         const finalBatchTitle = batchTitle || `Groups Generated on ${new Date().toLocaleDateString()}`;
 
-        // D. Algorithm: Balanced Snake Draft with Fixed Team Count
+        // D. Algorithm: Balanced Snake Draft
         const groups = Array.from({ length: numberOfGroups }, (_, i) => ({
             groupName: `Team ${String.fromCharCode(65 + i)}`, 
             members: [],
@@ -54,7 +53,6 @@ export const createGroups = async (req, res) => {
             const round = Math.floor(index / numberOfGroups);
             const isEvenRound = round % 2 === 0;
             
-            // Snake Logic: 0->N then N->0
             const groupIndex = isEvenRound 
                 ? index % numberOfGroups 
                 : (numberOfGroups - 1) - (index % numberOfGroups);
@@ -63,7 +61,7 @@ export const createGroups = async (req, res) => {
             groups[groupIndex].totalScore += student.score;
         });
 
-        // E. Save New Records (Don't delete old ones!)
+        // E. Save New Records
         await Promise.all(groups.map(async (g) => {
             const newGroup = new StudyGroup({
                 courseId,
@@ -85,20 +83,11 @@ export const createGroups = async (req, res) => {
     }
 };
 
-// 2. Get List of Saved Batches (NEW)
+// 2. Get List of Saved Batches (Unique Records)
 export const getGroupBatches = async (req, res) => {
     try {
         const { quizId } = req.params;
         
-        // Aggregate to find unique batches
-        const batches = await StudyGroup.aggregate([
-            { $match: { quizId:  { $ne: null } } }, // Safety check (can filter by quizId objectId if casted)
-            // Ideally we filter by quizId string matching or ObjectId matching. 
-            // For simplicity in MERN often we do a find and manual filter or precise match if IDs align.
-            // Let's use a simpler JS approach if aggregation is complex with ObjectIds:
-        ]); 
-        
-        // Using distinct logic via Find for simplicity/safety with mixed types
         const allGroups = await StudyGroup.find({ quizId }).sort({ createdAt: -1 });
         
         const uniqueBatches = [];
@@ -123,7 +112,7 @@ export const getGroupBatches = async (req, res) => {
     }
 };
 
-// 3. Get Specific Group Set (Updated)
+// 3. Get Specific Group Set (When viewing a record)
 export const getGroupsByBatch = async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -133,18 +122,37 @@ export const getGroupsByBatch = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+// 4. Get My Groups (Student View)
 export const getStudentGroups = async (req, res) => {
     try {
         const { courseId } = req.params;
-        const userId = req.auth.userId; // From Clerk Auth
+        const userId = req.auth.userId; 
 
-        // Find all groups in this course where 'members.userId' matches the logged-in student
         const groups = await StudyGroup.find({ 
             courseId, 
             "members.userId": userId 
         }).sort({ createdAt: -1 });
 
         res.json({ success: true, groups });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// 5. Delete a Group Batch (Educator - NEW)
+export const deleteGroupBatch = async (req, res) => {
+    try {
+        const { batchId } = req.params;
+        
+        // Delete all groups associated with this batch ID
+        const result = await StudyGroup.deleteMany({ batchId });
+        
+        if (result.deletedCount > 0) {
+            res.json({ success: true, message: "Team batch deleted successfully." });
+        } else {
+            res.json({ success: false, message: "No teams found to delete." });
+        }
     } catch (error) {
         res.json({ success: false, message: error.message });
     }

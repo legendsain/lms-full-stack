@@ -1,13 +1,12 @@
 import express from 'express';
-import { createGroups, getGroupBatches, getGroupsByBatch, getStudentGroups } from '../controllers/groupController.js';
+import { createGroups, getGroupBatches, getGroupsByBatch, getStudentGroups, deleteGroupBatch } from '../controllers/groupController.js';
 
 const groupRouter = express.Router();
 
 groupRouter.post('/create', createGroups);
 groupRouter.get('/list/:quizId', getGroupBatches);
 groupRouter.get('/batch/:batchId', getGroupsByBatch);
-
-// NEW ROUTE
-groupRouter.get('/my-groups/:courseId', getStudentGroups); 
+groupRouter.get('/my-groups/:courseId', getStudentGroups);
+groupRouter.delete('/batch/:batchId', deleteGroupBatch);
 
 export default groupRouter;
