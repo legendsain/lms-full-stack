@@ -97,6 +97,13 @@ const MyEnrollments = () => {
                                     >
                                         Take Quiz
                                     </button>
+                                    <button 
+                                        onClick={() => navigate('/student/teams/' + course._id)}
+                                        className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-indigo-600 max-sm:text-xs text-white rounded hover:bg-indigo-700 transition'
+                                    >
+                                        My Teams
+                                    </button>
+
                                 </td>
                             </tr>
                         ))}

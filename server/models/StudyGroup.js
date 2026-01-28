@@ -11,6 +11,9 @@ const studyGroupSchema = new mongoose.Schema({
         score: Number
     }],
     avgScore: { type: Number, default: 0 },
+    // NEW FIELDS FOR SAVING RECORDS
+    batchId: { type: String, required: true },     // Unique ID for this specific generation event
+    batchTitle: { type: String, required: true },  // e.g., "Week 1 Groups"
     createdAt: { type: Date, default: Date.now }
 });
 

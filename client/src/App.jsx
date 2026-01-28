@@ -1,5 +1,5 @@
-import React, { useContext } from 'react'
-import { Routes, Route, useLocation, useMatch } from 'react-router-dom'
+import React from 'react'
+import { Routes, Route, useMatch } from 'react-router-dom'
 import Navbar from './components/student/Navbar'
 import Home from './pages/student/Home'
 import CourseDetails from './pages/student/CourseDetails'
@@ -17,9 +17,8 @@ import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
 import ManageQuiz from './pages/educator/ManageQuiz'
 import QuizPlayer from './pages/student/QuizPlayer'
-import GroupGenerator from './pages/educator/GroupGenerator'; // <--- Import
-
-
+import StudentTeams from './pages/student/StudentTeams' // Ensure this is imported
+import GroupGenerator from './pages/educator/GroupGenerator' // Ensure this is imported
 
 const App = () => {
 
@@ -28,9 +27,12 @@ const App = () => {
   return (
     <div className="text-default min-h-screen bg-white">
       <ToastContainer />
+      
       {/* Render Student Navbar only if not on educator routes */}
       {!isEducatorRoute && <Navbar />}
+      
       <Routes>
+        {/* --- STUDENT ROUTES --- */}
         <Route path="/" element={<Home />} />
         <Route path="/course/:id" element={<CourseDetails />} />
         <Route path="/course-list" element={<CoursesList />} />
@@ -39,9 +41,14 @@ const App = () => {
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
         
-        {/* Student Quiz Route */}
+        {/* Quiz Routes */}
         <Route path="/course/:courseId/quiz" element={<QuizPlayer />} />
+        
+        {/* Teams Route (MOVED HERE - OUTSIDE EDUCATOR) */}
+        <Route path="/student/teams/:courseId" element={<StudentTeams />} />
 
+
+        {/* --- EDUCATOR ROUTES --- */}
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
@@ -49,12 +56,11 @@ const App = () => {
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
           
-          {/* Educator Quiz Route */}
+          {/* Educator Quiz & Group Routes */}
           <Route path='quiz/:courseId' element={<ManageQuiz />} />
-
           <Route path='groups/:courseId' element={<GroupGenerator />} />
-          
         </Route>
+
       </Routes>
     </div>
   )

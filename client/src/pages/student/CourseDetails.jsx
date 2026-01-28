@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Footer from '../../components/student/Footer';
 import { assets } from '../../assets/assets';
-import { useParams, useNavigate } from 'react-router-dom'; // 1. Added useNavigate
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
@@ -13,7 +13,7 @@ import Loading from '../../components/student/Loading';
 const CourseDetails = () => {
 
   const { id } = useParams()
-  const navigate = useNavigate() // 2. Initialize navigate function
+  const navigate = useNavigate()
 
   const [courseData, setCourseData] = useState(null)
   const [playerData, setPlayerData] = useState(null)
@@ -85,6 +85,7 @@ const CourseDetails = () => {
       <div className="flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-20 pt-10 text-left">
         <div className="absolute top-0 left-0 w-full h-section-height -z-1 bg-gradient-to-b from-cyan-100/70"></div>
 
+        {/* --- LEFT COLUMN (Main Content) --- */}
         <div className="max-w-xl z-10 text-gray-500">
           <h1 className="md:text-course-deatails-heading-large text-course-deatails-heading-small font-semibold text-gray-800">
             {courseData.courseTitle}
@@ -145,6 +146,25 @@ const CourseDetails = () => {
             </div>
           </div>
 
+          {/* --- NEW PLACEMENT: Quiz Section (Main Column) --- */}
+          {isAlreadyEnrolled && (
+            <div className="mt-10 p-6 bg-purple-50 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-xl">📝</div>
+                    <div>
+                        <h3 className="text-lg font-bold text-purple-900">Ready to test your knowledge?</h3>
+                        <p className="text-purple-600 text-sm">Complete the quiz to evaluate your understanding.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => navigate('/course/' + courseData._id + '/quiz')} 
+                    className="px-8 py-3 rounded-full bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all shadow-md whitespace-nowrap"
+                >
+                    Take Quiz
+                </button>
+            </div>
+          )}
+
           <div className="py-20 text-sm md:text-default">
             <h3 className="text-xl font-semibold text-gray-800">Course Description</h3>
             <p className="rich-text pt-3" dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}>
@@ -152,6 +172,7 @@ const CourseDetails = () => {
           </div>
         </div>
 
+        {/* --- RIGHT COLUMN (Sidebar Card) --- */}
         <div className="max-w-course-card z-10 shadow-custom-card rounded-t md:rounded-none overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
           {
             playerData
@@ -190,16 +211,8 @@ const CourseDetails = () => {
             <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
-            
-            {/* Take Quiz Button */}
-            {isAlreadyEnrolled && (
-              <button 
-                onClick={() => navigate('/course/' + courseData._id + '/quiz')} 
-                className="md:mt-4 mt-2 w-full py-3 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all"
-              >
-                Take Quiz
-              </button>
-            )}
+
+            {/* Note: Take Quiz Button Removed from Here */}
 
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">What's in the course?</p>
