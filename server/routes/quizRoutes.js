@@ -1,6 +1,15 @@
 import express from 'express';
 import upload from '../configs/multer.js';
-import { generateQuiz, saveQuiz, getAllQuizzes, getSingleQuiz, submitQuiz, getQuizResults } from '../controllers/quizController.js';
+// --- 1. Added 'getQuizByCourse' to imports ---
+import { 
+    generateQuiz, 
+    saveQuiz, 
+    getAllQuizzes, 
+    getSingleQuiz, 
+    submitQuiz, 
+    getQuizResults, 
+    getQuizByCourse 
+} from '../controllers/quizController.js';
 
 const quizRouter = express.Router();
 
@@ -8,12 +17,16 @@ const quizRouter = express.Router();
 quizRouter.post('/generate', upload.single('file'), generateQuiz);
 quizRouter.post('/save', saveQuiz);
 
-// Retrieve Routes
-quizRouter.get('/course/:courseId', getAllQuizzes); // Get List
-quizRouter.get('/:quizId', getSingleQuiz);          // Get One
+// Retrieve Routes (Educator)
+quizRouter.get('/course/:courseId', getAllQuizzes); // Get List of all quizzes
 quizRouter.get('/results/:quizId', getQuizResults); // Get Results for One
+quizRouter.get('/:quizId', getSingleQuiz);          // Get One specific quiz
 
 // Student Routes
 quizRouter.post('/submit', submitQuiz);
+
+// --- 2. Added Student "Get Quiz" Route ---
+// We use '/student-course/' prefix to avoid conflict with the '/:quizId' route above
+quizRouter.get('/student-course/:courseId', getQuizByCourse); 
 
 export default quizRouter;

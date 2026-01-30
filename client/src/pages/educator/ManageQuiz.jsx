@@ -227,13 +227,48 @@ const ManageQuiz = () => {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     {activeTab === 'manage' && (
                         <div>
-                            {/* AI GENERATOR */}
+                            {/* AI GENERATOR SECTION - REDESIGNED */}
                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
-                                <div><h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3><p className="text-xs text-gray-500 mt-1">Upload content to generate questions.</p></div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
+                                </div>
+                                
                                 <div className="flex items-center gap-4">
-                                    <div className="flex flex-col"><label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label><input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-1 text-sm text-center" /></div>
-                                    <input type="file" onChange={(e) => setFile(e.target.files[0])} className="text-sm w-48" />
-                                    <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50">{genLoading ? "Generating..." : "Generate"}</button>
+                                    {/* Count Input */}
+                                    <div className="flex flex-col">
+                                        <label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            max="50" 
+                                            value={numQuestions} 
+                                            onChange={(e) => setNumQuestions(e.target.value)} 
+                                            className="w-16 border border-gray-300 rounded p-2 text-sm text-center outline-none focus:border-blue-500" 
+                                        />
+                                    </div>
+
+                                    {/* STYLED FILE INPUT */}
+                                    <label className="cursor-pointer bg-white border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2 text-sm font-medium">
+                                        <span className="truncate max-w-[120px]">
+                                            {file ? file.name : "Choose File"}
+                                        </span>
+                                        <input 
+                                            type="file" 
+                                            hidden 
+                                            accept=".pdf,.txt,.doc,.docx"
+                                            onChange={(e) => setFile(e.target.files[0])} 
+                                        />
+                                    </label>
+
+                                    {/* Generate Button */}
+                                    <button 
+                                        onClick={handleGenerate} 
+                                        disabled={genLoading} 
+                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50 shadow-md min-w-[100px]"
+                                    >
+                                        {genLoading ? "Working..." : "Generate"}
+                                    </button>
                                 </div>
                             </div>
 

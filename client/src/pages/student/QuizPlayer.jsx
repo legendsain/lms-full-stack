@@ -6,7 +6,8 @@ import { toast } from 'react-toastify'
 
 const QuizPlayer = () => {
 
-  const { courseId } = useParams()
+  // --- CHANGE 1: Get quizId from URL instead of courseId ---
+  const { quizId } = useParams() 
   const { backendUrl, getToken, navigate } = useContext(AppContext)
   
   const [quizData, setQuizData] = useState(null)
@@ -14,7 +15,6 @@ const QuizPlayer = () => {
   const [selectedAnswers, setSelectedAnswers] = useState({}) 
   const [timeLeft, setTimeLeft] = useState(null)
   
-  // --- NEW STATE: PREVIOUS ATTEMPT ---
   const [attemptData, setAttemptData] = useState(null); 
 
   const formatTime = (seconds) => {
@@ -26,23 +26,25 @@ const QuizPlayer = () => {
   const fetchQuiz = async () => {
     try {
       const token = await getToken()
-      const { data } = await axios.get(backendUrl + `/api/quiz/${courseId}`, { headers: { Authorization: `Bearer ${token}` } })
+      
+      // --- CHANGE 2: Fetch specific quiz by ID ---
+      const { data } = await axios.get(backendUrl + `/api/quiz/${quizId}`, { headers: { Authorization: `Bearer ${token}` } })
       
       if (data.success && data.quiz) {
         setQuizData(data.quiz)
         
-        // --- CHECK FOR PREVIOUS ATTEMPT ---
+        // Check for previous attempt
         if (data.attempt) {
-            setAttemptData(data.attempt); // Store the result
-            return; // Stop here, don't initialize timer
+            setAttemptData(data.attempt);
+            return;
         }
 
-        // Only start timer if NOT attempted
+        // Set Timer
         if (data.quiz.timeLimit && data.quiz.timeLimit > 0) {
             setTimeLeft(data.quiz.timeLimit * 60); 
         }
       } else {
-        toast.error("No quiz found")
+        toast.error("Quiz not found")
         navigate(-1)
       }
     } catch (error) {
@@ -51,8 +53,8 @@ const QuizPlayer = () => {
   }
 
   useEffect(() => {
-    // Timer Logic (Same as before)
-    if (timeLeft === null || timeLeft <= 0 || attemptData) return; // Don't run if attempted
+    // Timer Logic
+    if (timeLeft === null || timeLeft <= 0 || attemptData) return;
 
     const timerId = setInterval(() => {
         setTimeLeft((prevTime) => {
@@ -83,12 +85,13 @@ const QuizPlayer = () => {
 
         const { data } = await axios.post(backendUrl + '/api/quiz/submit', {
             quizId: quizData._id,
+            // --- CHANGE 3: Get courseId from the loaded quiz data (since it's not in URL anymore) ---
+            courseId: quizData.courseId, 
             answers: answersArray
         }, { headers: { Authorization: `Bearer ${token}` } });
 
         if (data.success) {
             toast.success(`Quiz Submitted! Score: ${data.score}/${data.totalQuestions}`);
-            // Instead of navigating away, simply set the attempt data to show the result screen immediately
             setAttemptData({ score: data.score, totalQuestions: data.totalQuestions });
         } else {
             toast.error(data.message);
@@ -99,7 +102,8 @@ const QuizPlayer = () => {
     }
   }
 
-  useEffect(() => { fetchQuiz() }, [courseId])
+  // --- CHANGE 4: Dependency array now watches quizId ---
+  useEffect(() => { fetchQuiz() }, [quizId])
 
   if (!quizData) return <div className="p-10 text-center">Loading Quiz...</div>
 
@@ -119,8 +123,9 @@ const QuizPlayer = () => {
                     <p className="text-4xl font-bold text-blue-600 mt-2">{attemptData.score} <span className="text-xl text-gray-400">/ {attemptData.totalQuestions}</span></p>
                 </div>
 
-                <button onClick={() => navigate('/my-enrollments')} className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 transition w-full">
-                    Back to Courses
+                {/* Return to the Quiz List (or Enrolled Courses) */}
+                <button onClick={() => navigate(-1)} className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 transition w-full">
+                    Back to Quiz List
                 </button>
             </div>
         </div>

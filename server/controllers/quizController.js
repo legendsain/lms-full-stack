@@ -74,13 +74,13 @@ export const saveQuiz = async (req, res) => {
 export const getAllQuizzes = async (req, res) => {
     try {
         const { courseId } = req.params;
-        const quizzes = await Quiz.find({ courseId }).select('title createdAt questions passingPercentage');
+        // --- FIX: Added 'timeLimit' to the select string below ---
+        const quizzes = await Quiz.find({ courseId }).select('title createdAt questions passingPercentage timeLimit');
         res.json({ success: true, quizzes });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };
-
 // 4. Get Single Quiz (UPDATED: Checks for previous attempts)
 export const getSingleQuiz = async (req, res) => {
     try {
@@ -176,6 +176,27 @@ export const submitQuiz = async (req, res) => {
 
     } catch (error) {
         console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+// Get Quiz By Course ID (For Students)
+export const getQuizByCourse = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const userId = req.auth.userId;
+
+        // Find the most recent quiz created for this course
+        const quiz = await Quiz.findOne({ courseId }).sort({ createdAt: -1 });
+
+        if (!quiz) {
+            return res.json({ success: false, message: "No quiz found for this course." });
+        }
+
+        // Check for previous attempt
+        const attempt = await QuizResult.findOne({ quizId: quiz._id, userId });
+
+        res.json({ success: true, quiz, attempt });
+    } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };

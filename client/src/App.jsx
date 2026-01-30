@@ -19,7 +19,8 @@ import ManageQuiz from './pages/educator/ManageQuiz'
 import QuizPlayer from './pages/student/QuizPlayer'
 import StudentTeams from './pages/student/StudentTeams'
 import GroupGenerator from './pages/educator/GroupGenerator'
-import CareerDashboard from './pages/student/CareerDashboard' // Imported correctly
+import CareerDashboard from './pages/student/CareerDashboard' 
+import StudentQuizList from './pages/student/StudentQuizList' // <--- 1. NEW IMPORT
 
 const App = () => {
 
@@ -41,10 +42,14 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
-        <Route path="/career-dashboard" element={<CareerDashboard />} /> {/* Grouped here */}
+        <Route path="/career-dashboard" element={<CareerDashboard />} />
         
-        {/* Quiz Routes */}
-        <Route path="/course/:courseId/quiz" element={<QuizPlayer />} />
+        {/* --- UPDATED QUIZ ROUTES --- */}
+        {/* 1. Show List of Quizzes for a Course */}
+        <Route path="/course/quizzes/:courseId" element={<StudentQuizList />} />
+        
+        {/* 2. Play a Specific Quiz (using quizId) */}
+        <Route path="/course/quiz/:quizId" element={<QuizPlayer />} />
         
         {/* Teams Route */}
         <Route path="/student/teams/:courseId" element={<StudentTeams />} />

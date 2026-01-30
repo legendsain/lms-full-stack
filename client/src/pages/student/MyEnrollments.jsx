@@ -3,7 +3,7 @@ import { AppContext } from '../../context/AppContext'
 import axios from 'axios'
 import { Line } from 'rc-progress';
 import Footer from '../../components/student/Footer';
-import { toast } from 'react-toastify'; // Added toast import just in case, though usually global
+import { toast } from 'react-toastify'; 
 
 const MyEnrollments = () => {
 
@@ -15,7 +15,6 @@ const MyEnrollments = () => {
         try {
             const token = await getToken();
 
-            // Use Promise.all to handle multiple async operations
             const tempProgressArray = await Promise.all(
                 enrolledCourses.map(async (course) => {
                     const { data } = await axios.post(
@@ -24,9 +23,7 @@ const MyEnrollments = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
 
-                    // Calculate total lectures
                     let totalLectures = calculateNoOfLectures(course);
-
                     const lectureCompleted = data.progressData ? data.progressData.lectureCompleted.length : 0;
                     return { totalLectures, lectureCompleted };
                 })
@@ -45,11 +42,9 @@ const MyEnrollments = () => {
     }, [userData])
 
     useEffect(() => {
-
         if (enrolledCourses.length > 0) {
             getCourseProgress()
         }
-
     }, [enrolledCourses])
 
     return (
@@ -90,13 +85,15 @@ const MyEnrollments = () => {
                                         {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 ? 'Completed' : 'On Going'}
                                     </button>
 
-                                    {/* --- NEW: Take Quiz Button --- */}
+                                    {/* --- UPDATED: Navigate to Quiz List --- */}
                                     <button 
-                                        onClick={() => navigate('/course/' + course._id + '/quiz')}
+                                        // Changed from specific quiz link to list link
+                                        onClick={() => navigate('/course/quizzes/' + course._id)}
                                         className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-green-600 max-sm:text-xs text-white'
                                     >
                                         Take Quiz
                                     </button>
+                                    
                                     <button 
                                         onClick={() => navigate('/student/teams/' + course._id)}
                                         className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-indigo-600 max-sm:text-xs text-white rounded hover:bg-indigo-700 transition'
