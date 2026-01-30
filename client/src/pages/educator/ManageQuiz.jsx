@@ -20,10 +20,10 @@ const ManageQuiz = () => {
     const [file, setFile] = useState(null);
     const [quizTitle, setQuizTitle] = useState("New Quiz");
 
-    // --- NEW STATES (Gamification & Settings) ---
+    // Settings States
     const [numQuestions, setNumQuestions] = useState(10);
     const [passingPercentage, setPassingPercentage] = useState(50);
-    const [timeLimit, setTimeLimit] = useState(0); // <--- ADDED: Time Limit State
+    const [timeLimit, setTimeLimit] = useState(0);
     
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
@@ -50,9 +50,8 @@ const ManageQuiz = () => {
             setQuizTitle(quiz.title);
             setQuestions(quiz.questions);
             
-            // --- LOAD SETTINGS ---
             setPassingPercentage(quiz.passingPercentage || 50); 
-            setTimeLimit(quiz.timeLimit || 0); // <--- Load existing time limit
+            setTimeLimit(quiz.timeLimit || 0);
 
             const resData = await axios.get(backendUrl + `/api/quiz/results/${quiz._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -71,20 +70,15 @@ const ManageQuiz = () => {
         setQuestions([]);
         setResults([]);
         setFile(null);
-        
-        // --- RESET SETTINGS ---
         setNumQuestions(10); 
         setPassingPercentage(50); 
-        setTimeLimit(0); // <--- Reset to 0 (No limit)
-        
+        setTimeLimit(0);
         setView('editor');
         setActiveTab('manage');
     };
 
     const handleGenerate = async () => {
         if (!file) return toast.error("Upload a file first");
-        if (numQuestions < 1 || numQuestions > 50) return toast.error("Questions must be between 1 and 50");
-        
         setGenLoading(true);
         const formData = new FormData();
         formData.append('file', file);
@@ -94,7 +88,19 @@ const ManageQuiz = () => {
             const token = await getToken();
             const { data } = await axios.post(backendUrl + '/api/quiz/generate', formData, { headers: { Authorization: `Bearer ${token}` }});
             if (data.success) {
-                setQuestions(data.quizData);
+                // --- CRITICAL FIX: Convert AI Text Answer to Number Index ---
+                const formattedQuestions = data.quizData.map(q => {
+                    // If AI returns a string (e.g., "Dennis Richie"), find its index in the options
+                    if (typeof q.correctAnswer === 'string') {
+                        const index = q.options.findIndex(opt => opt === q.correctAnswer);
+                        // If found, use the index. If not found, default to 0 (First Option)
+                        return { ...q, correctAnswer: index !== -1 ? index : 0 };
+                    }
+                    // If AI returned a number, keep it
+                    return q;
+                });
+                
+                setQuestions(formattedQuestions);
                 toast.success(`Generated ${data.quizData.length} Questions!`);
             } else toast.error(data.message);
         } catch (error) { toast.error(error.message); }
@@ -112,7 +118,7 @@ const ManageQuiz = () => {
                 title: quizTitle,
                 questions,
                 passingPercentage: Number(passingPercentage),
-                timeLimit: Number(timeLimit), // <--- SEND TO BACKEND
+                timeLimit: Number(timeLimit),
                 quizId: selectedQuiz ? selectedQuiz._id : null
             };
             const { data } = await axios.post(backendUrl + '/api/quiz/save', payload, { headers: { Authorization: `Bearer ${token}` }});
@@ -124,9 +130,41 @@ const ManageQuiz = () => {
         } catch (error) { toast.error(error.message); }
     };
 
+    // --- HELPER: ADD MANUAL QUESTION ---
+    const addManualQuestion = () => {
+        setQuestions([
+            ...questions, 
+            { 
+                question: "", 
+                options: ["", "", "", ""], 
+                correctAnswer: 0 // Default to first option being correct (Index 0)
+            }
+        ]);
+    };
+
+    // --- HELPER: UPDATE QUESTION FIELD ---
+    const updateQuestion = (index, field, value) => {
+        const newQuestions = [...questions];
+        newQuestions[index][field] = value;
+        setQuestions(newQuestions);
+    };
+
+    // --- HELPER: UPDATE OPTION ---
+    const updateOption = (qIndex, oIndex, value) => {
+        const newQuestions = [...questions];
+        newQuestions[qIndex].options[oIndex] = value;
+        setQuestions(newQuestions);
+    };
+
+    // --- HELPER: SET CORRECT ANSWER ---
+    const setCorrectOption = (qIndex, oIndex) => {
+        const newQuestions = [...questions];
+        newQuestions[qIndex].correctAnswer = oIndex; // Store the INDEX (0-3)
+        setQuestions(newQuestions);
+    };
+
     if (loading && view === 'list') return <Loading />;
 
-    // LIST VIEW
     if (view === 'list') {
         return (
             <div className="min-h-screen bg-gray-50 p-8 font-sans">
@@ -165,111 +203,85 @@ const ManageQuiz = () => {
             <div className="max-w-5xl mx-auto">
                 <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-2">← Back to Library</button>
 
-                {/* HEADER SETTINGS */}
+                {/* SETTINGS HEADER */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
                     <div className="flex flex-col md:flex-row justify-between items-end gap-6">
                         <div className="flex-1 w-full">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Quiz Title</label>
                             <input type="text" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} className="text-3xl font-bold text-gray-800 w-full border-b border-gray-300 focus:border-blue-500 outline-none pb-2 mt-1" placeholder="Enter Quiz Title..." />
                         </div>
-                        
                         <div className="flex gap-4">
-                            {/* TIME LIMIT INPUT */}
                             <div className="w-24">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Timer (mins)</label>
-                                <input 
-                                    type="number" 
-                                    min="0" 
-                                    value={timeLimit} 
-                                    onChange={(e) => setTimeLimit(e.target.value)} 
-                                    className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" 
-                                    placeholder="0 = None"
-                                />
+                                <input type="number" min="0" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" placeholder="0 = None" />
                             </div>
-
-                            {/* PASSING SCORE INPUT */}
                             <div className="w-24">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pass (%)</label>
-                                <input 
-                                    type="number" 
-                                    min="1" 
-                                    max="100" 
-                                    value={passingPercentage} 
-                                    onChange={(e) => setPassingPercentage(e.target.value)} 
-                                    className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" 
-                                />
+                                <input type="number" min="1" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(e.target.value)} className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" />
                             </div>
-
                             <button onClick={handleSave} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow-md transition h-[42px] self-end">Save Quiz</button>
                         </div>
                     </div>
                 </div>
 
-                {/* TABS */}
-                <div className="flex gap-6 border-b border-gray-300 mb-8">
-                    <button onClick={() => setActiveTab('manage')} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'manage' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Questions ({questions.length})</button>
-                    <button onClick={() => setActiveTab('results')} disabled={!selectedQuiz} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'results' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Results ({results.length})</button>
-                </div>
-
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     {activeTab === 'manage' && (
                         <div>
-                            {/* GENERATOR SECTION */}
+                            {/* AI GENERATOR */}
                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
-                                </div>
+                                <div><h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3><p className="text-xs text-gray-500 mt-1">Upload content to generate questions.</p></div>
                                 <div className="flex items-center gap-4">
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label>
-                                        <input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-1 text-sm text-center" />
-                                    </div>
+                                    <div className="flex flex-col"><label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label><input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-1 text-sm text-center" /></div>
                                     <input type="file" onChange={(e) => setFile(e.target.files[0])} className="text-sm w-48" />
-                                    <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50">
-                                        {genLoading ? "Generating..." : "Generate"}
-                                    </button>
+                                    <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50">{genLoading ? "Generating..." : "Generate"}</button>
                                 </div>
                             </div>
 
                             {/* QUESTIONS LIST */}
-                            <div className="space-y-4">
-                                {questions.map((q, idx) => (
-                                    <div key={idx} className="border border-gray-200 p-5 rounded-lg hover:bg-gray-50 transition">
-                                        <div className="flex gap-3 mb-3">
-                                            <span className="text-blue-600 font-bold">Q{idx+1}</span>
-                                            <input className="font-medium text-gray-800 w-full bg-transparent outline-none" value={q.question} onChange={(e) => { const newQ = [...questions]; newQ[idx].question = e.target.value; setQuestions(newQ); }} />
-                                            <button onClick={() => {const newQ = questions.filter((_, i) => i !== idx); setQuestions(newQ)}} className="text-red-400 hover:text-red-600">✕</button>
+                            <div className="space-y-6">
+                                {questions.map((q, qIdx) => (
+                                    <div key={qIdx} className="border border-gray-200 p-5 rounded-lg hover:bg-gray-50 transition relative group">
+                                        <button onClick={() => {const newQ = questions.filter((_, i) => i !== qIdx); setQuestions(newQ)}} className="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
+                                        
+                                        <div className="flex gap-3 mb-4 items-center">
+                                            <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded text-sm">Q{qIdx+1}</span>
+                                            <input 
+                                                className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" 
+                                                value={q.question} 
+                                                onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)} 
+                                                placeholder="Type your question here..."
+                                            />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3 ml-8">
-                                            {q.options.map((opt, i) => (
-                                                <div key={i} className={`p-2 rounded text-sm flex items-center gap-2 border ${opt === q.correctAnswer ? 'bg-green-50 border-green-200' : 'border-gray-200'}`}>
-                                                    <div className={`w-3 h-3 rounded-full ${opt === q.correctAnswer ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                                    <input className="bg-transparent w-full outline-none text-gray-700" value={opt} onChange={(e) => { const newQ = [...questions]; newQ[idx].options[i] = e.target.value; if(opt === q.correctAnswer) newQ[idx].correctAnswer = e.target.value; setQuestions(newQ); }} />
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-0 md:ml-10">
+                                            {q.options.map((opt, oIdx) => (
+                                                <div key={oIdx} className={`p-3 rounded-md text-sm flex items-center gap-3 border transition-colors ${oIdx === q.correctAnswer ? 'bg-green-50 border-green-300 ring-1 ring-green-300' : 'bg-white border-gray-200'}`}>
+                                                    
+                                                    {/* CLICKABLE CIRCLE FOR SELECTION */}
+                                                    <div 
+                                                        onClick={() => setCorrectOption(qIdx, oIdx)}
+                                                        className={`w-5 h-5 rounded-full cursor-pointer border flex items-center justify-center flex-shrink-0 transition-colors ${oIdx === q.correctAnswer ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-gray-400'}`}
+                                                    >
+                                                        {oIdx === q.correctAnswer && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                    </div>
+
+                                                    <input 
+                                                        className="bg-transparent w-full outline-none text-gray-700 placeholder-gray-400" 
+                                                        value={opt} 
+                                                        onChange={(e) => updateOption(qIdx, oIdx, e.target.value)} 
+                                                        placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} // Shows Option A, Option B...
+                                                    />
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 ))}
-                                <button onClick={() => setQuestions([...questions, { question: "New Question?", options: ["A","B","C","D"], correctAnswer: "A" }])} className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 transition font-medium">+ Add Manual Question</button>
+                                
+                                <button onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition font-medium flex items-center justify-center gap-2">
+                                    <span className="text-2xl leading-none">+</span> Add Manual Question
+                                </button>
                             </div>
                         </div>
-                    )}
-
-                    {activeTab === 'results' && (
-                        <table className="min-w-full text-left">
-                            <thead><tr className="border-b border-gray-200 text-gray-500 text-sm uppercase"><th className="py-3 px-4">Student</th><th className="py-3 px-4">Score</th><th className="py-3 px-4">Date</th><th className="py-3 px-4">Status</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {results.map((res, i) => (
-                                    <tr key={i} className="hover:bg-gray-50">
-                                        <td className="py-3 px-4 flex items-center gap-3">{res.studentImage && <img src={res.studentImage} className="w-8 h-8 rounded-full" alt="" />}<span className="font-medium text-gray-800">{res.studentName}</span></td>
-                                        <td className="py-3 px-4 font-bold">{res.score} / {res.totalQuestions}</td>
-                                        <td className="py-3 px-4 text-sm text-gray-500">{new Date(res.date).toLocaleDateString()}</td>
-                                        <td className="py-3 px-4"><span className={`px-2 py-1 rounded text-xs font-semibold ${((res.score/res.totalQuestions)*100) >= passingPercentage ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{((res.score/res.totalQuestions)*100) >= passingPercentage ? "Passed" : "Failed"}</span></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     )}
                 </div>
             </div>
