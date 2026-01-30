@@ -48,7 +48,14 @@ const ManageQuiz = () => {
             const token = await getToken();
             setSelectedQuiz(quiz);
             setQuizTitle(quiz.title);
-            setQuestions(quiz.questions);
+            
+            // --- FIX 1: Ensure we load 'questionText' correctly ---
+            // If the DB has 'questionText', use it. If it has 'question' (old bad data), map it.
+            const mappedQuestions = quiz.questions.map(q => ({
+                ...q,
+                questionText: q.questionText || q.question || "" // Handle legacy/mismatch
+            }));
+            setQuestions(mappedQuestions);
             
             setPassingPercentage(quiz.passingPercentage || 50); 
             setTimeLimit(quiz.timeLimit || 0);
@@ -88,12 +95,23 @@ const ManageQuiz = () => {
             const token = await getToken();
             const { data } = await axios.post(backendUrl + '/api/quiz/generate', formData, { headers: { Authorization: `Bearer ${token}` }});
             if (data.success) {
+                // --- FIX 2: Map AI 'question' to 'questionText' ---
                 const formattedQuestions = data.quizData.map(q => {
+                    // Convert correct answer text to index
+                    let correctIndex = 0;
                     if (typeof q.correctAnswer === 'string') {
-                        const index = q.options.findIndex(opt => opt === q.correctAnswer);
-                        return { ...q, correctAnswer: index !== -1 ? index : 0 };
+                        const idx = q.options.findIndex(opt => opt === q.correctAnswer);
+                        correctIndex = idx !== -1 ? idx : 0;
+                    } else {
+                        correctIndex = q.correctAnswer;
                     }
-                    return q;
+
+                    // Return object with 'questionText'
+                    return { 
+                        questionText: q.question || q.questionText, // AI returns 'question', we need 'questionText'
+                        options: q.options,
+                        correctAnswer: correctIndex
+                    };
                 });
                 
                 setQuestions(formattedQuestions);
@@ -112,7 +130,7 @@ const ManageQuiz = () => {
             const payload = {
                 courseId,
                 title: quizTitle,
-                questions,
+                questions, // Now contains 'questionText'
                 passingPercentage: Number(passingPercentage),
                 timeLimit: Number(timeLimit),
                 quizId: selectedQuiz ? selectedQuiz._id : null
@@ -126,10 +144,8 @@ const ManageQuiz = () => {
         } catch (error) { toast.error(error.message); }
     };
 
-    // --- NEW FUNCTION: EXPORT TO CSV ---
     const exportToCSV = () => {
         if (results.length === 0) return toast.error("No results to export");
-
         const headers = ["Student Name,Score,Total Questions,Percentage,Status,Date"];
         const rows = results.map(res => {
             const percentage = ((res.score / res.totalQuestions) * 100).toFixed(1);
@@ -137,7 +153,6 @@ const ManageQuiz = () => {
             const date = new Date(res.date).toLocaleDateString();
             return `"${res.studentName}",${res.score},${res.totalQuestions},${percentage}%,${status},${date}`;
         });
-
         const csvContent = [headers, ...rows].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -147,20 +162,30 @@ const ManageQuiz = () => {
         link.click();
     };
 
-    // --- HELPERS ---
+    // --- FIX 3: Use 'questionText' in helpers ---
     const addManualQuestion = () => {
-        setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+        setQuestions([
+            ...questions, 
+            { 
+                questionText: "", // <--- FIXED
+                options: ["", "", "", ""], 
+                correctAnswer: 0 
+            }
+        ]);
     };
+
     const updateQuestion = (index, field, value) => {
         const newQuestions = [...questions];
         newQuestions[index][field] = value;
         setQuestions(newQuestions);
     };
+
     const updateOption = (qIndex, oIndex, value) => {
         const newQuestions = [...questions];
         newQuestions[qIndex].options[oIndex] = value;
         setQuestions(newQuestions);
     };
+
     const setCorrectOption = (qIndex, oIndex) => {
         const newQuestions = [...questions];
         newQuestions[qIndex].correctAnswer = oIndex;
@@ -207,7 +232,6 @@ const ManageQuiz = () => {
             <div className="max-w-5xl mx-auto">
                 <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-2">← Back to Library</button>
 
-                {/* SETTINGS HEADER */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
                     <div className="flex flex-col md:flex-row justify-between items-end gap-6">
                         <div className="flex-1 w-full">
@@ -228,7 +252,6 @@ const ManageQuiz = () => {
                     </div>
                 </div>
 
-                {/* TABS */}
                 <div className="flex gap-6 border-b border-gray-300 mb-8">
                     <button onClick={() => setActiveTab('manage')} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'manage' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Questions ({questions.length})</button>
                     <button onClick={() => setActiveTab('results')} disabled={!selectedQuiz} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'results' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Results ({results.length})</button>
@@ -237,7 +260,6 @@ const ManageQuiz = () => {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     {activeTab === 'manage' && (
                         <div>
-                            {/* AI GENERATOR */}
                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
@@ -256,14 +278,19 @@ const ManageQuiz = () => {
                                 </div>
                             </div>
 
-                            {/* QUESTIONS LIST */}
                             <div className="space-y-6">
                                 {questions.map((q, qIdx) => (
                                     <div key={qIdx} className="border border-gray-200 p-5 rounded-lg hover:bg-gray-50 transition relative group">
                                         <button onClick={() => {const newQ = questions.filter((_, i) => i !== qIdx); setQuestions(newQ)}} className="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
                                         <div className="flex gap-3 mb-4 items-center">
                                             <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded text-sm">Q{qIdx+1}</span>
-                                            <input className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" value={q.question} onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)} placeholder="Type your question here..." />
+                                            {/* --- FIX 4: Bind input to 'questionText' --- */}
+                                            <input 
+                                                className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" 
+                                                value={q.questionText} 
+                                                onChange={(e) => updateQuestion(qIdx, 'questionText', e.target.value)} 
+                                                placeholder="Type your question here..." 
+                                            />
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-0 md:ml-10">
                                             {q.options.map((opt, oIdx) => (
@@ -284,7 +311,6 @@ const ManageQuiz = () => {
 
                     {activeTab === 'results' && (
                         <div>
-                            {/* --- EXPORT HEADER --- */}
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold text-gray-800">Student Performance</h3>
                                 <button onClick={exportToCSV} className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
