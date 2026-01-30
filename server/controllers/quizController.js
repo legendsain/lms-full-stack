@@ -96,12 +96,32 @@ export const getAllQuizzes = async (req, res) => {
     }
 };
 
-// 4. Get Single Quiz
+// 4. Get Single Quiz (UPDATED: Checks for Previous Attempt)
 export const getSingleQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
+        
+        // 1. Fetch the Quiz
         const quiz = await Quiz.findById(quizId);
-        res.json({ success: true, quiz });
+        
+        if (!quiz) {
+             return res.json({ success: false, message: "Quiz not found" });
+        }
+
+        // 2. Check for User Identity (to see if they attempted it)
+        let attempt = null;
+        if (req.auth && req.auth.userId) {
+            const userId = req.auth.userId;
+            attempt = await QuizResult.findOne({ quizId, userId });
+        }
+
+        // 3. Send back Quiz AND Attempt data
+        res.json({ 
+            success: true, 
+            quiz, 
+            attempt // <--- This is the key! If this exists, the UI will show the Score.
+        });
+
     } catch (error) {
         res.json({ success: false, message: error.message });
     }

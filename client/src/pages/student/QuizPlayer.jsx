@@ -6,7 +6,6 @@ import { toast } from 'react-toastify'
 
 const QuizPlayer = () => {
 
-  // --- CHANGE 1: Get quizId from URL instead of courseId ---
   const { quizId } = useParams() 
   const { backendUrl, getToken, navigate } = useContext(AppContext)
   
@@ -16,6 +15,9 @@ const QuizPlayer = () => {
   const [timeLeft, setTimeLeft] = useState(null)
   
   const [attemptData, setAttemptData] = useState(null); 
+  
+  // --- NEW STATE: PREVENT DOUBLE CLICKS ---
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -26,20 +28,16 @@ const QuizPlayer = () => {
   const fetchQuiz = async () => {
     try {
       const token = await getToken()
-      
-      // --- CHANGE 2: Fetch specific quiz by ID ---
       const { data } = await axios.get(backendUrl + `/api/quiz/${quizId}`, { headers: { Authorization: `Bearer ${token}` } })
       
       if (data.success && data.quiz) {
         setQuizData(data.quiz)
         
-        // Check for previous attempt
         if (data.attempt) {
             setAttemptData(data.attempt);
             return;
         }
 
-        // Set Timer
         if (data.quiz.timeLimit && data.quiz.timeLimit > 0) {
             setTimeLeft(data.quiz.timeLimit * 60); 
         }
@@ -53,8 +51,7 @@ const QuizPlayer = () => {
   }
 
   useEffect(() => {
-    // Timer Logic
-    if (timeLeft === null || timeLeft <= 0 || attemptData) return;
+    if (timeLeft === null || timeLeft <= 0 || attemptData || isSubmitting) return;
 
     const timerId = setInterval(() => {
         setTimeLeft((prevTime) => {
@@ -67,7 +64,7 @@ const QuizPlayer = () => {
         });
     }, 1000);
     return () => clearInterval(timerId);
-  }, [timeLeft, attemptData]);
+  }, [timeLeft, attemptData, isSubmitting]);
 
   const handleOptionSelect = (optionIndex) => {
     setSelectedAnswers({ ...selectedAnswers, [currentQuestionIndex]: optionIndex })
@@ -78,14 +75,19 @@ const QuizPlayer = () => {
 
   const handleSubmit = async (isAutoSubmit = false) => {
     try {
+        // --- 1. Prevent Double Submission ---
+        if (isSubmitting) return; 
+
         if (!isAutoSubmit && !window.confirm("Are you sure you want to submit?")) return;
         
+        // --- 2. Lock the Button ---
+        setIsSubmitting(true);
+
         const token = await getToken();
         const answersArray = quizData.questions.map((_, index) => selectedAnswers[index] ?? null);
 
         const { data } = await axios.post(backendUrl + '/api/quiz/submit', {
             quizId: quizData._id,
-            // --- CHANGE 3: Get courseId from the loaded quiz data (since it's not in URL anymore) ---
             courseId: quizData.courseId, 
             answers: answersArray
         }, { headers: { Authorization: `Bearer ${token}` } });
@@ -95,14 +97,16 @@ const QuizPlayer = () => {
             setAttemptData({ score: data.score, totalQuestions: data.totalQuestions });
         } else {
             toast.error(data.message);
+            // Unlock if error, so they can try again
+            setIsSubmitting(false); 
         }
 
     } catch (error) {
         toast.error(error.message);
+        setIsSubmitting(false);
     }
   }
 
-  // --- CHANGE 4: Dependency array now watches quizId ---
   useEffect(() => { fetchQuiz() }, [quizId])
 
   if (!quizData) return <div className="p-10 text-center">Loading Quiz...</div>
@@ -123,7 +127,6 @@ const QuizPlayer = () => {
                     <p className="text-4xl font-bold text-blue-600 mt-2">{attemptData.score} <span className="text-xl text-gray-400">/ {attemptData.totalQuestions}</span></p>
                 </div>
 
-                {/* Return to the Quiz List (or Enrolled Courses) */}
                 <button onClick={() => navigate(-1)} className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 transition w-full">
                     Back to Quiz List
                 </button>
@@ -137,7 +140,6 @@ const QuizPlayer = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-10 px-4">
-      {/* Header & Timer */}
       <div className="w-full max-w-2xl flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">{quizData.title}</h1>
         {timeLeft !== null && (
@@ -173,7 +175,14 @@ const QuizPlayer = () => {
         <div className="flex justify-between mt-8 pt-6 border-t border-gray-100">
             <button onClick={handlePrevious} disabled={currentQuestionIndex === 0} className={`px-6 py-2 rounded ${currentQuestionIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}>Previous</button>
             {currentQuestionIndex === quizData.questions.length - 1 ? (
-                <button onClick={() => handleSubmit(false)} className="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-medium">Submit Quiz</button>
+                // --- 3. DISABLE BUTTON WHILE SUBMITTING ---
+                <button 
+                    onClick={() => handleSubmit(false)} 
+                    disabled={isSubmitting} // Disable when true
+                    className={`px-8 py-2 rounded font-medium text-white ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                >
+                    {isSubmitting ? "Submitting..." : "Submit Quiz"}
+                </button>
             ) : (
                 <button onClick={handleNext} className="bg-blue-600 text-white px-8 py-2 rounded hover:bg-blue-700 font-medium">Next Question</button>
             )}
