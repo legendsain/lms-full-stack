@@ -146,7 +146,7 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          {/* --- NEW PLACEMENT: Quiz Section (Main Column) --- */}
+          {/* --- QUIZ SECTION (Main Column) --- */}
           {isAlreadyEnrolled && (
             <div className="mt-10 p-6 bg-purple-50 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
@@ -157,7 +157,8 @@ const CourseDetails = () => {
                     </div>
                 </div>
                 <button 
-                    onClick={() => navigate('/course/' + courseData._id + '/quiz')} 
+                    // --- UPDATED: Navigate to Quiz List Page ---
+                    onClick={() => navigate('/course/quizzes/' + courseData._id)} 
                     className="px-8 py-3 rounded-full bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all shadow-md whitespace-nowrap"
                 >
                     Take Quiz
@@ -211,8 +212,6 @@ const CourseDetails = () => {
             <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
-
-            {/* Note: Take Quiz Button Removed from Here */}
 
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">What's in the course?</p>

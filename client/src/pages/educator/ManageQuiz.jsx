@@ -88,15 +88,11 @@ const ManageQuiz = () => {
             const token = await getToken();
             const { data } = await axios.post(backendUrl + '/api/quiz/generate', formData, { headers: { Authorization: `Bearer ${token}` }});
             if (data.success) {
-                // --- CRITICAL FIX: Convert AI Text Answer to Number Index ---
                 const formattedQuestions = data.quizData.map(q => {
-                    // If AI returns a string (e.g., "Dennis Richie"), find its index in the options
                     if (typeof q.correctAnswer === 'string') {
                         const index = q.options.findIndex(opt => opt === q.correctAnswer);
-                        // If found, use the index. If not found, default to 0 (First Option)
                         return { ...q, correctAnswer: index !== -1 ? index : 0 };
                     }
-                    // If AI returned a number, keep it
                     return q;
                 });
                 
@@ -130,36 +126,44 @@ const ManageQuiz = () => {
         } catch (error) { toast.error(error.message); }
     };
 
-    // --- HELPER: ADD MANUAL QUESTION ---
-    const addManualQuestion = () => {
-        setQuestions([
-            ...questions, 
-            { 
-                question: "", 
-                options: ["", "", "", ""], 
-                correctAnswer: 0 // Default to first option being correct (Index 0)
-            }
-        ]);
+    // --- NEW FUNCTION: EXPORT TO CSV ---
+    const exportToCSV = () => {
+        if (results.length === 0) return toast.error("No results to export");
+
+        const headers = ["Student Name,Score,Total Questions,Percentage,Status,Date"];
+        const rows = results.map(res => {
+            const percentage = ((res.score / res.totalQuestions) * 100).toFixed(1);
+            const status = percentage >= passingPercentage ? "Passed" : "Failed";
+            const date = new Date(res.date).toLocaleDateString();
+            return `"${res.studentName}",${res.score},${res.totalQuestions},${percentage}%,${status},${date}`;
+        });
+
+        const csvContent = [headers, ...rows].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${quizTitle.replace(/\s+/g, '_')}_Results.csv`);
+        link.click();
     };
 
-    // --- HELPER: UPDATE QUESTION FIELD ---
+    // --- HELPERS ---
+    const addManualQuestion = () => {
+        setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    };
     const updateQuestion = (index, field, value) => {
         const newQuestions = [...questions];
         newQuestions[index][field] = value;
         setQuestions(newQuestions);
     };
-
-    // --- HELPER: UPDATE OPTION ---
     const updateOption = (qIndex, oIndex, value) => {
         const newQuestions = [...questions];
         newQuestions[qIndex].options[oIndex] = value;
         setQuestions(newQuestions);
     };
-
-    // --- HELPER: SET CORRECT ANSWER ---
     const setCorrectOption = (qIndex, oIndex) => {
         const newQuestions = [...questions];
-        newQuestions[qIndex].correctAnswer = oIndex; // Store the INDEX (0-3)
+        newQuestions[qIndex].correctAnswer = oIndex;
         setQuestions(newQuestions);
     };
 
@@ -224,51 +228,31 @@ const ManageQuiz = () => {
                     </div>
                 </div>
 
+                {/* TABS */}
+                <div className="flex gap-6 border-b border-gray-300 mb-8">
+                    <button onClick={() => setActiveTab('manage')} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'manage' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Questions ({questions.length})</button>
+                    <button onClick={() => setActiveTab('results')} disabled={!selectedQuiz} className={`pb-3 text-lg font-medium transition-all ${activeTab === 'results' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Results ({results.length})</button>
+                </div>
+
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     {activeTab === 'manage' && (
                         <div>
-                            {/* AI GENERATOR SECTION - REDESIGNED */}
+                            {/* AI GENERATOR */}
                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
                                     <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
                                 </div>
-                                
                                 <div className="flex items-center gap-4">
-                                    {/* Count Input */}
                                     <div className="flex flex-col">
                                         <label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label>
-                                        <input 
-                                            type="number" 
-                                            min="1" 
-                                            max="50" 
-                                            value={numQuestions} 
-                                            onChange={(e) => setNumQuestions(e.target.value)} 
-                                            className="w-16 border border-gray-300 rounded p-2 text-sm text-center outline-none focus:border-blue-500" 
-                                        />
+                                        <input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-2 text-sm text-center outline-none focus:border-blue-500" />
                                     </div>
-
-                                    {/* STYLED FILE INPUT */}
                                     <label className="cursor-pointer bg-white border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2 text-sm font-medium">
-                                        <span className="truncate max-w-[120px]">
-                                            {file ? file.name : "Choose File"}
-                                        </span>
-                                        <input 
-                                            type="file" 
-                                            hidden 
-                                            accept=".pdf,.txt,.doc,.docx"
-                                            onChange={(e) => setFile(e.target.files[0])} 
-                                        />
+                                        <span className="truncate max-w-[120px]">{file ? file.name : "Choose File"}</span>
+                                        <input type="file" hidden accept=".pdf,.txt,.doc,.docx" onChange={(e) => setFile(e.target.files[0])} />
                                     </label>
-
-                                    {/* Generate Button */}
-                                    <button 
-                                        onClick={handleGenerate} 
-                                        disabled={genLoading} 
-                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50 shadow-md min-w-[100px]"
-                                    >
-                                        {genLoading ? "Working..." : "Generate"}
-                                    </button>
+                                    <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50 shadow-md min-w-[100px]">{genLoading ? "Working..." : "Generate"}</button>
                                 </div>
                             </div>
 
@@ -277,45 +261,54 @@ const ManageQuiz = () => {
                                 {questions.map((q, qIdx) => (
                                     <div key={qIdx} className="border border-gray-200 p-5 rounded-lg hover:bg-gray-50 transition relative group">
                                         <button onClick={() => {const newQ = questions.filter((_, i) => i !== qIdx); setQuestions(newQ)}} className="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
-                                        
                                         <div className="flex gap-3 mb-4 items-center">
                                             <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded text-sm">Q{qIdx+1}</span>
-                                            <input 
-                                                className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" 
-                                                value={q.question} 
-                                                onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)} 
-                                                placeholder="Type your question here..."
-                                            />
+                                            <input className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" value={q.question} onChange={(e) => updateQuestion(qIdx, 'question', e.target.value)} placeholder="Type your question here..." />
                                         </div>
-
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-0 md:ml-10">
                                             {q.options.map((opt, oIdx) => (
                                                 <div key={oIdx} className={`p-3 rounded-md text-sm flex items-center gap-3 border transition-colors ${oIdx === q.correctAnswer ? 'bg-green-50 border-green-300 ring-1 ring-green-300' : 'bg-white border-gray-200'}`}>
-                                                    
-                                                    {/* CLICKABLE CIRCLE FOR SELECTION */}
-                                                    <div 
-                                                        onClick={() => setCorrectOption(qIdx, oIdx)}
-                                                        className={`w-5 h-5 rounded-full cursor-pointer border flex items-center justify-center flex-shrink-0 transition-colors ${oIdx === q.correctAnswer ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-gray-400'}`}
-                                                    >
+                                                    <div onClick={() => setCorrectOption(qIdx, oIdx)} className={`w-5 h-5 rounded-full cursor-pointer border flex items-center justify-center flex-shrink-0 transition-colors ${oIdx === q.correctAnswer ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-gray-400'}`}>
                                                         {oIdx === q.correctAnswer && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                                     </div>
-
-                                                    <input 
-                                                        className="bg-transparent w-full outline-none text-gray-700 placeholder-gray-400" 
-                                                        value={opt} 
-                                                        onChange={(e) => updateOption(qIdx, oIdx, e.target.value)} 
-                                                        placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} // Shows Option A, Option B...
-                                                    />
+                                                    <input className="bg-transparent w-full outline-none text-gray-700 placeholder-gray-400" value={opt} onChange={(e) => updateOption(qIdx, oIdx, e.target.value)} placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} />
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 ))}
-                                
-                                <button onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition font-medium flex items-center justify-center gap-2">
-                                    <span className="text-2xl leading-none">+</span> Add Manual Question
+                                <button onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition font-medium flex items-center justify-center gap-2"><span className="text-2xl leading-none">+</span> Add Manual Question</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'results' && (
+                        <div>
+                            {/* --- EXPORT HEADER --- */}
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-800">Student Performance</h3>
+                                <button onClick={exportToCSV} className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Download CSV
                                 </button>
                             </div>
+
+                            <table className="min-w-full text-left">
+                                <thead><tr className="border-b border-gray-200 text-gray-500 text-sm uppercase"><th className="py-3 px-4">Student</th><th className="py-3 px-4">Score</th><th className="py-3 px-4">Date</th><th className="py-3 px-4">Status</th></tr></thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {results.map((res, i) => (
+                                        <tr key={i} className="hover:bg-gray-50">
+                                            <td className="py-3 px-4 flex items-center gap-3">{res.studentImage && <img src={res.studentImage} className="w-8 h-8 rounded-full" alt="" />}<span className="font-medium text-gray-800">{res.studentName}</span></td>
+                                            <td className="py-3 px-4 font-bold">{res.score} / {res.totalQuestions}</td>
+                                            <td className="py-3 px-4 text-sm text-gray-500">{new Date(res.date).toLocaleDateString()}</td>
+                                            <td className="py-3 px-4"><span className={`px-2 py-1 rounded text-xs font-semibold ${((res.score/res.totalQuestions)*100) >= passingPercentage ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{((res.score/res.totalQuestions)*100) >= passingPercentage ? "Passed" : "Failed"}</span></td>
+                                        </tr>
+                                    ))}
+                                    {results.length === 0 && <tr><td colSpan="4" className="text-center py-8 text-gray-400">No attempts yet.</td></tr>}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>

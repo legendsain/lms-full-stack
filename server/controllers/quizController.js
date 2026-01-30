@@ -6,7 +6,7 @@ import fs from "fs";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. Generate Quiz
+// 1. Generate Quiz (No changes needed here)
 export const generateQuiz = async (req, res) => {
     try {
         const file = req.file;
@@ -52,16 +52,30 @@ export const generateQuiz = async (req, res) => {
     }
 };
 
-// 2. Save Quiz
+// 2. Save Quiz (UPDATED TO SAVE TIME LIMIT)
 export const saveQuiz = async (req, res) => {
     try {
-        const { courseId, quizId, title, questions, passingPercentage } = req.body;
+        // --- ADDED timeLimit HERE ---
+        const { courseId, quizId, title, questions, passingPercentage, timeLimit } = req.body;
         
         if (quizId) {
-            await Quiz.findByIdAndUpdate(quizId, { title, questions, passingPercentage });
+            // Update existing
+            await Quiz.findByIdAndUpdate(quizId, { 
+                title, 
+                questions, 
+                passingPercentage, 
+                timeLimit: timeLimit || 0 // Save it (default 0)
+            });
             res.json({ success: true, message: "Quiz Updated Successfully" });
         } else {
-            const newQuiz = new Quiz({ courseId, title, questions, passingPercentage });
+            // Create new
+            const newQuiz = new Quiz({ 
+                courseId, 
+                title, 
+                questions, 
+                passingPercentage,
+                timeLimit: timeLimit || 0 // Save it (default 0)
+            });
             await newQuiz.save();
             res.json({ success: true, message: "Quiz Created Successfully" });
         }
@@ -70,37 +84,29 @@ export const saveQuiz = async (req, res) => {
     }
 };
 
-// 3. Get All Quizzes
+// 3. Get All Quizzes (UPDATED TO FETCH TIME LIMIT)
 export const getAllQuizzes = async (req, res) => {
     try {
         const { courseId } = req.params;
-        // --- FIX: Added 'timeLimit' to the select string below ---
+        // --- ADDED timeLimit to selection ---
         const quizzes = await Quiz.find({ courseId }).select('title createdAt questions passingPercentage timeLimit');
         res.json({ success: true, quizzes });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };
-// 4. Get Single Quiz (UPDATED: Checks for previous attempts)
+
+// 4. Get Single Quiz
 export const getSingleQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const userId = req.auth.userId; // Get the ID of the student requesting the quiz
-
         const quiz = await Quiz.findById(quizId);
-        
-        // Check if this specific user has already finished this quiz
-        const attempt = await QuizResult.findOne({ quizId, userId });
-
-        res.json({ 
-            success: true, 
-            quiz, 
-            attempt // Send this back (will be null if not attempted yet)
-        });
+        res.json({ success: true, quiz });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };
+
 // 5. Get Quiz Results
 export const getQuizResults = async (req, res) => {
     try {
@@ -120,23 +126,21 @@ export const getQuizResults = async (req, res) => {
     }
 };
 
-// 6. Submit Quiz (UPDATED: Prevents multiple attempts)
+// 6. Submit Quiz
 export const submitQuiz = async (req, res) => {
     try {
-        const { courseId, quizId, answers } = req.body; 
+        const { courseId, quizId, answers } = req.body;
         const userId = req.auth.userId;
-
-        // --- SECURITY CHECK: PREVENT DUPLICATE ATTEMPT ---
+        
+        // Check for duplicate attempt
         const existingAttempt = await QuizResult.findOne({ quizId, userId });
         if (existingAttempt) {
             return res.json({ success: false, message: "You have already attempted this quiz." });
         }
-        // -------------------------------------------------
-        
+
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.json({ success: false, message: "Quiz not found" });
 
-        // Calculate Score
         let score = 0;
         answers.forEach((selectedOptionIndex, questionIndex) => {
             const question = quiz.questions[questionIndex];
@@ -145,7 +149,7 @@ export const submitQuiz = async (req, res) => {
             }
         });
 
-        // --- GAMIFICATION LOGIC (Keep your existing logic here) ---
+        // Gamification
         const user = await User.findById(userId);
         let earnedPoints = 0;
         earnedPoints += (score * 10);
@@ -162,7 +166,6 @@ export const submitQuiz = async (req, res) => {
             await user.save();
         }
 
-        // Save Result
         const result = new QuizResult({ userId, courseId, quizId, score, totalQuestions: quiz.questions.length });
         await result.save();
 
@@ -179,22 +182,18 @@ export const submitQuiz = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
-// Get Quiz By Course ID (For Students)
+
+// 7. Get Quiz By Course (For Students) - NOT USED IN NEW FLOW BUT GOOD TO KEEP
 export const getQuizByCourse = async (req, res) => {
     try {
         const { courseId } = req.params;
         const userId = req.auth.userId;
-
-        // Find the most recent quiz created for this course
         const quiz = await Quiz.findOne({ courseId }).sort({ createdAt: -1 });
 
         if (!quiz) {
             return res.json({ success: false, message: "No quiz found for this course." });
         }
-
-        // Check for previous attempt
         const attempt = await QuizResult.findOne({ quizId: quiz._id, userId });
-
         res.json({ success: true, quiz, attempt });
     } catch (error) {
         res.json({ success: false, message: error.message });

@@ -14,7 +14,6 @@ const StudentQuizList = () => {
   const fetchQuizzes = async () => {
     try {
       const token = await getToken();
-      // Reuse the existing getAllQuizzes route
       const { data } = await axios.get(`${backendUrl}/api/quiz/course/${courseId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -61,13 +60,14 @@ const StudentQuizList = () => {
                   <div>
                     <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
                     <p className="text-sm text-gray-500">
-                      {quiz.questions.length} Questions • {quiz.timeLimit ? `${quiz.timeLimit} Mins` : 'No Time Limit'}
+                      {/* Check if timeLimit exists and is greater than 0 */}
+                      {quiz.questions.length} Questions • {quiz.timeLimit && quiz.timeLimit > 0 ? `${quiz.timeLimit} Mins` : 'No Time Limit'}
                     </p>
                   </div>
                 </div>
                 
                 <button 
-                  onClick={() => navigate(`/course/quiz/${quiz._id}`)} // Navigate to Player with Quiz ID
+                  onClick={() => navigate(`/course/quiz/${quiz._id}`)} 
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium whitespace-nowrap"
                 >
                   Start Quiz
