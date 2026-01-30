@@ -20,9 +20,10 @@ const ManageQuiz = () => {
     const [file, setFile] = useState(null);
     const [quizTitle, setQuizTitle] = useState("New Quiz");
 
-    // NEW STATES
+    // --- NEW STATES (Gamification & Settings) ---
     const [numQuestions, setNumQuestions] = useState(10);
     const [passingPercentage, setPassingPercentage] = useState(50);
+    const [timeLimit, setTimeLimit] = useState(0); // <--- ADDED: Time Limit State
     
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
@@ -48,7 +49,10 @@ const ManageQuiz = () => {
             setSelectedQuiz(quiz);
             setQuizTitle(quiz.title);
             setQuestions(quiz.questions);
-            setPassingPercentage(quiz.passingPercentage || 50); // Load existing setting
+            
+            // --- LOAD SETTINGS ---
+            setPassingPercentage(quiz.passingPercentage || 50); 
+            setTimeLimit(quiz.timeLimit || 0); // <--- Load existing time limit
 
             const resData = await axios.get(backendUrl + `/api/quiz/results/${quiz._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -67,8 +71,12 @@ const ManageQuiz = () => {
         setQuestions([]);
         setResults([]);
         setFile(null);
-        setNumQuestions(10); // Reset default
-        setPassingPercentage(50); // Reset default
+        
+        // --- RESET SETTINGS ---
+        setNumQuestions(10); 
+        setPassingPercentage(50); 
+        setTimeLimit(0); // <--- Reset to 0 (No limit)
+        
         setView('editor');
         setActiveTab('manage');
     };
@@ -80,7 +88,7 @@ const ManageQuiz = () => {
         setGenLoading(true);
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('numQuestions', numQuestions); // Send count to backend
+        formData.append('numQuestions', numQuestions); 
 
         try {
             const token = await getToken();
@@ -103,7 +111,8 @@ const ManageQuiz = () => {
                 courseId,
                 title: quizTitle,
                 questions,
-                passingPercentage, // Send to backend
+                passingPercentage: Number(passingPercentage),
+                timeLimit: Number(timeLimit), // <--- SEND TO BACKEND
                 quizId: selectedQuiz ? selectedQuiz._id : null
             };
             const { data } = await axios.post(backendUrl + '/api/quiz/save', payload, { headers: { Authorization: `Bearer ${token}` }});
@@ -117,7 +126,7 @@ const ManageQuiz = () => {
 
     if (loading && view === 'list') return <Loading />;
 
-    // LIST VIEW (Unchanged basically, just context)
+    // LIST VIEW
     if (view === 'list') {
         return (
             <div className="min-h-screen bg-gray-50 p-8 font-sans">
@@ -139,7 +148,7 @@ const ManageQuiz = () => {
                                 <div>
                                     <div className="flex justify-between mb-4"><span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-bold">QUIZ</span><span className="text-xs text-gray-400">{new Date(quiz.createdAt).toLocaleDateString()}</span></div>
                                     <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2">{quiz.title}</h3>
-                                    <p className="text-gray-500 text-sm">{quiz.questions.length} Questions • Pass: {quiz.passingPercentage}%</p>
+                                    <p className="text-gray-500 text-sm">{quiz.questions.length} Questions • {quiz.timeLimit ? `${quiz.timeLimit} mins` : 'No Limit'}</p>
                                 </div>
                                 <span className="text-blue-600 text-sm font-semibold hover:underline mt-4 block">Manage & Results →</span>
                             </div>
@@ -158,16 +167,41 @@ const ManageQuiz = () => {
 
                 {/* HEADER SETTINGS */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-                    <div className="flex flex-wrap justify-between items-end gap-4">
-                        <div className="flex-1 min-w-[300px]">
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-6">
+                        <div className="flex-1 w-full">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Quiz Title</label>
                             <input type="text" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} className="text-3xl font-bold text-gray-800 w-full border-b border-gray-300 focus:border-blue-500 outline-none pb-2 mt-1" placeholder="Enter Quiz Title..." />
                         </div>
-                        <div className="w-32">
-                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pass Score (%)</label>
-                             <input type="number" min="1" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(e.target.value)} className="w-full border border-gray-300 rounded p-2 mt-1" />
+                        
+                        <div className="flex gap-4">
+                            {/* TIME LIMIT INPUT */}
+                            <div className="w-24">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Timer (mins)</label>
+                                <input 
+                                    type="number" 
+                                    min="0" 
+                                    value={timeLimit} 
+                                    onChange={(e) => setTimeLimit(e.target.value)} 
+                                    className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" 
+                                    placeholder="0 = None"
+                                />
+                            </div>
+
+                            {/* PASSING SCORE INPUT */}
+                            <div className="w-24">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pass (%)</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="100" 
+                                    value={passingPercentage} 
+                                    onChange={(e) => setPassingPercentage(e.target.value)} 
+                                    className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" 
+                                />
+                            </div>
+
+                            <button onClick={handleSave} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow-md transition h-[42px] self-end">Save Quiz</button>
                         </div>
-                        <button onClick={handleSave} className="bg-green-600 text-white px-8 py-2.5 rounded-lg hover:bg-green-700 shadow-md transition">Save Quiz</button>
                     </div>
                 </div>
 
@@ -184,7 +218,7 @@ const ManageQuiz = () => {
                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Upload content and choose how many questions you want.</p>
+                                    <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="flex flex-col">
@@ -205,6 +239,7 @@ const ManageQuiz = () => {
                                         <div className="flex gap-3 mb-3">
                                             <span className="text-blue-600 font-bold">Q{idx+1}</span>
                                             <input className="font-medium text-gray-800 w-full bg-transparent outline-none" value={q.question} onChange={(e) => { const newQ = [...questions]; newQ[idx].question = e.target.value; setQuestions(newQ); }} />
+                                            <button onClick={() => {const newQ = questions.filter((_, i) => i !== idx); setQuestions(newQ)}} className="text-red-400 hover:text-red-600">✕</button>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3 ml-8">
                                             {q.options.map((opt, i) => (
@@ -216,6 +251,7 @@ const ManageQuiz = () => {
                                         </div>
                                     </div>
                                 ))}
+                                <button onClick={() => setQuestions([...questions, { question: "New Question?", options: ["A","B","C","D"], correctAnswer: "A" }])} className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 transition font-medium">+ Add Manual Question</button>
                             </div>
                         </div>
                     )}

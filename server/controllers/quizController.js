@@ -6,19 +6,18 @@ import fs from "fs";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. Generate Quiz (Updated with numQuestions)
+// 1. Generate Quiz
 export const generateQuiz = async (req, res) => {
     try {
         const file = req.file;
-        const { numQuestions } = req.body; // <--- READ INPUT
-        const count = numQuestions || 10;  // Default to 10
+        const { numQuestions } = req.body;
+        const count = numQuestions || 10;
 
         if (!file) return res.json({ success: false, message: "No file uploaded" });
 
         const fileData = fs.readFileSync(file.path);
         const base64Data = fileData.toString("base64");
         
-        // Use standard stable model
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = `
@@ -53,10 +52,10 @@ export const generateQuiz = async (req, res) => {
     }
 };
 
-// 2. Save Quiz (Updated with passingPercentage)
+// 2. Save Quiz
 export const saveQuiz = async (req, res) => {
     try {
-        const { courseId, quizId, title, questions, passingPercentage } = req.body; // <--- READ INPUT
+        const { courseId, quizId, title, questions, passingPercentage } = req.body;
         
         if (quizId) {
             await Quiz.findByIdAndUpdate(quizId, { title, questions, passingPercentage });
@@ -71,7 +70,7 @@ export const saveQuiz = async (req, res) => {
     }
 };
 
-// ... (Keep getAllQuizzes, getSingleQuiz, getQuizResults, submitQuiz EXACTLY AS THEY WERE) ...
+// 3. Get All Quizzes
 export const getAllQuizzes = async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -82,16 +81,27 @@ export const getAllQuizzes = async (req, res) => {
     }
 };
 
+// 4. Get Single Quiz (UPDATED: Checks for previous attempts)
 export const getSingleQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
+        const userId = req.auth.userId; // Get the ID of the student requesting the quiz
+
         const quiz = await Quiz.findById(quizId);
-        res.json({ success: true, quiz });
+        
+        // Check if this specific user has already finished this quiz
+        const attempt = await QuizResult.findOne({ quizId, userId });
+
+        res.json({ 
+            success: true, 
+            quiz, 
+            attempt // Send this back (will be null if not attempted yet)
+        });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };
-
+// 5. Get Quiz Results
 export const getQuizResults = async (req, res) => {
     try {
         const { quizId } = req.params;
@@ -110,20 +120,62 @@ export const getQuizResults = async (req, res) => {
     }
 };
 
+// 6. Submit Quiz (UPDATED: Prevents multiple attempts)
 export const submitQuiz = async (req, res) => {
     try {
-        const { courseId, quizId, answers } = req.body;
+        const { courseId, quizId, answers } = req.body; 
         const userId = req.auth.userId;
+
+        // --- SECURITY CHECK: PREVENT DUPLICATE ATTEMPT ---
+        const existingAttempt = await QuizResult.findOne({ quizId, userId });
+        if (existingAttempt) {
+            return res.json({ success: false, message: "You have already attempted this quiz." });
+        }
+        // -------------------------------------------------
+        
         const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.json({ success: false, message: "Quiz not found" });
+
+        // Calculate Score
         let score = 0;
-        answers.forEach(ans => {
-            const question = quiz.questions.find(q => q._id.toString() === ans.questionId);
-            if (question && question.correctAnswer === ans.selectedOption) score++;
+        answers.forEach((selectedOptionIndex, questionIndex) => {
+            const question = quiz.questions[questionIndex];
+            if (question && question.correctAnswer === selectedOptionIndex) {
+                score++;
+            }
         });
+
+        // --- GAMIFICATION LOGIC (Keep your existing logic here) ---
+        const user = await User.findById(userId);
+        let earnedPoints = 0;
+        earnedPoints += (score * 10);
+        if (score === quiz.questions.length && quiz.questions.length > 0) {
+            earnedPoints += 50;
+        }
+
+        if (user) {
+            user.gamification = user.gamification || {};
+            user.gamification.points = (user.gamification.points || 0) + earnedPoints;
+            user.gamification.tokens = (user.gamification.tokens || 0) + earnedPoints;
+            user.gamification.quizzesCompleted = (user.gamification.quizzesCompleted || 0) + 1;
+            user.gamification.lastActivity = new Date();
+            await user.save();
+        }
+
+        // Save Result
         const result = new QuizResult({ userId, courseId, quizId, score, totalQuestions: quiz.questions.length });
         await result.save();
-        res.json({ success: true, score, totalQuestions: quiz.questions.length });
+
+        res.json({ 
+            success: true, 
+            score, 
+            totalQuestions: quiz.questions.length,
+            earnedPoints,
+            tokens: user.gamification.tokens 
+        });
+
     } catch (error) {
+        console.error(error);
         res.json({ success: false, message: error.message });
     }
 };

@@ -1,197 +1,181 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
-import { AppContext } from '../../context/AppContext';
-import Loading from '../../components/student/Loading';
+import React, { useEffect, useState, useContext } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { AppContext } from '../../context/AppContext'
+import { toast } from 'react-toastify'
 
 const QuizPlayer = () => {
-    const { courseId } = useParams();
-    const { backendUrl, getToken, navigate } = useContext(AppContext);
-    
-    // STATES
-    const [view, setView] = useState('list'); // 'list' | 'quiz' | 'result'
-    const [quizzes, setQuizzes] = useState([]);
-    const [currentQuiz, setCurrentQuiz] = useState(null);
-    const [answers, setAnswers] = useState({});
-    const [scoreData, setScoreData] = useState(null);
-    const [loading, setLoading] = useState(true);
 
-    // 1. FETCH ALL QUIZZES FOR THIS COURSE
-    useEffect(() => {
-        const fetchQuizzes = async () => {
-            try {
-                const token = await getToken();
-                // Using the generic course quiz fetcher
-                const { data } = await axios.get(backendUrl + `/api/quiz/course/${courseId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (data.success) {
-                    setQuizzes(data.quizzes);
-                }
-            } catch (error) {
-                console.error(error);
-            }
-            setLoading(false);
-        };
-        fetchQuizzes();
-    }, [courseId, backendUrl, getToken]);
+  const { courseId } = useParams()
+  const { backendUrl, getToken, navigate } = useContext(AppContext)
+  
+  const [quizData, setQuizData] = useState(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [selectedAnswers, setSelectedAnswers] = useState({}) 
+  const [timeLeft, setTimeLeft] = useState(null)
+  
+  // --- NEW STATE: PREVIOUS ATTEMPT ---
+  const [attemptData, setAttemptData] = useState(null); 
 
-    // 2. START A QUIZ
-    const startQuiz = async (quizId) => {
-        setLoading(true);
-        try {
-            const token = await getToken();
-            const { data } = await axios.get(backendUrl + `/api/quiz/${quizId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (data.success) {
-                setCurrentQuiz(data.quiz);
-                setAnswers({}); // Reset answers
-                setView('quiz');
-            }
-        } catch (error) {
-            console.error(error);
-        }
-        setLoading(false);
-    };
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
 
-    // 3. SUBMIT QUIZ
-    const handleSubmit = async () => {
-        const formattedAnswers = Object.keys(answers).map(qId => ({
-            questionId: qId,
-            selectedOption: answers[qId]
-        }));
+  const fetchQuiz = async () => {
+    try {
+      const token = await getToken()
+      const { data } = await axios.get(backendUrl + `/api/quiz/${courseId}`, { headers: { Authorization: `Bearer ${token}` } })
+      
+      if (data.success && data.quiz) {
+        setQuizData(data.quiz)
         
-        try {
-            const token = await getToken();
-            const { data } = await axios.post(backendUrl + '/api/quiz/submit', 
-                { courseId, quizId: currentQuiz._id, answers: formattedAnswers },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            if (data.success) {
-                setScoreData({
-                    score: data.score,
-                    total: data.totalQuestions,
-                    passingPercentage: currentQuiz.passingPercentage || 50
-                });
-                setView('result');
-            }
-        } catch (error) {
-            console.error(error);
+        // --- CHECK FOR PREVIOUS ATTEMPT ---
+        if (data.attempt) {
+            setAttemptData(data.attempt); // Store the result
+            return; // Stop here, don't initialize timer
         }
-    };
 
-    if (loading) return <Loading />;
-
-    // VIEW 1: QUIZ SELECTION LIST (Solves the "Loading..." issue)
-    if (view === 'list') {
-        return (
-            <div className="max-w-4xl mx-auto p-8 font-sans">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Available Quizzes</h1>
-                <p className="text-gray-500 mb-8">Select a quiz to test your knowledge.</p>
-
-                {quizzes.length === 0 ? (
-                    <div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200">
-                        <p className="text-gray-400">No quizzes available for this course yet.</p>
-                        <button onClick={() => navigate(-1)} className="mt-4 text-blue-600 hover:underline">Go Back</button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {quizzes.map((quiz) => (
-                            <div key={quiz._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition flex flex-col justify-between">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
-                                    <div className="flex gap-4 text-sm text-gray-500 mt-2">
-                                        <span>📝 {quiz.questions.length} Questions</span>
-                                        <span>🎯 Pass: {quiz.passingPercentage || 50}%</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => startQuiz(quiz._id)}
-                                    className="mt-6 w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition"
-                                >
-                                    Start Quiz
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
+        // Only start timer if NOT attempted
+        if (data.quiz.timeLimit && data.quiz.timeLimit > 0) {
+            setTimeLeft(data.quiz.timeLimit * 60); 
+        }
+      } else {
+        toast.error("No quiz found")
+        navigate(-1)
+      }
+    } catch (error) {
+      toast.error("Failed to load quiz")
     }
+  }
 
-    // VIEW 2: QUIZ INTERFACE
-    if (view === 'quiz' && currentQuiz) {
-        return (
-            <div className="max-w-3xl mx-auto p-8 font-sans">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">{currentQuiz.title}</h1>
-                    <button onClick={() => setView('list')} className="text-gray-500 hover:text-red-500">Exit Quiz</button>
-                </div>
+  useEffect(() => {
+    // Timer Logic (Same as before)
+    if (timeLeft === null || timeLeft <= 0 || attemptData) return; // Don't run if attempted
 
-                <div className="space-y-8">
-                    {currentQuiz.questions.map((q, index) => (
-                        <div key={q._id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4">{index + 1}. {q.question}</h3>
-                            <div className="space-y-2">
-                                {q.options.map((opt, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => setAnswers(prev => ({ ...prev, [q._id]: opt }))}
-                                        className={`w-full text-left p-3 rounded-lg border transition ${answers[q._id] === opt ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+    const timerId = setInterval(() => {
+        setTimeLeft((prevTime) => {
+            if (prevTime <= 1) {
+                clearInterval(timerId);
+                handleSubmit(true);
+                return 0;
+            }
+            return prevTime - 1;
+        });
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, [timeLeft, attemptData]);
 
-                <div className="mt-8 border-t pt-6">
-                    <button 
-                        onClick={handleSubmit} 
-                        className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-lg hover:bg-green-700 shadow-md transition"
-                        disabled={Object.keys(answers).length < currentQuiz.questions.length}
-                    >
-                        Submit Quiz ({Object.keys(answers).length}/{currentQuiz.questions.length})
-                    </button>
-                </div>
-            </div>
-        );
+  const handleOptionSelect = (optionIndex) => {
+    setSelectedAnswers({ ...selectedAnswers, [currentQuestionIndex]: optionIndex })
+  }
+
+  const handleNext = () => { if (currentQuestionIndex < quizData.questions.length - 1) setCurrentQuestionIndex(prev => prev + 1) }
+  const handlePrevious = () => { if (currentQuestionIndex > 0) setCurrentQuestionIndex(prev => prev - 1) }
+
+  const handleSubmit = async (isAutoSubmit = false) => {
+    try {
+        if (!isAutoSubmit && !window.confirm("Are you sure you want to submit?")) return;
+        
+        const token = await getToken();
+        const answersArray = quizData.questions.map((_, index) => selectedAnswers[index] ?? null);
+
+        const { data } = await axios.post(backendUrl + '/api/quiz/submit', {
+            quizId: quizData._id,
+            answers: answersArray
+        }, { headers: { Authorization: `Bearer ${token}` } });
+
+        if (data.success) {
+            toast.success(`Quiz Submitted! Score: ${data.score}/${data.totalQuestions}`);
+            // Instead of navigating away, simply set the attempt data to show the result screen immediately
+            setAttemptData({ score: data.score, totalQuestions: data.totalQuestions });
+        } else {
+            toast.error(data.message);
+        }
+
+    } catch (error) {
+        toast.error(error.message);
     }
+  }
 
-    // VIEW 3: RESULT SCREEN
-    if (view === 'result' && scoreData) {
-        const percentage = Math.round((scoreData.score / scoreData.total) * 100);
-        const passed = percentage >= scoreData.passingPercentage;
+  useEffect(() => { fetchQuiz() }, [courseId])
 
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="bg-white p-10 rounded-2xl shadow-xl max-w-md w-full text-center">
-                    <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center text-4xl mb-6 ${passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                        {passed ? '🏆' : '⚠️'}
-                    </div>
-                    
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">{passed ? "Congratulations!" : "Keep Practicing!"}</h1>
-                    <p className="text-gray-500 mb-6">{passed ? "You passed the quiz." : "You didn't reach the passing score."}</p>
-                    
-                    <div className="bg-gray-50 rounded-xl p-6 mb-8">
-                        <div className="text-5xl font-black text-gray-800 mb-2">{percentage}%</div>
-                        <p className="text-sm text-gray-400 uppercase tracking-wide font-bold">Your Score: {scoreData.score} / {scoreData.total}</p>
-                    </div>
+  if (!quizData) return <div className="p-10 text-center">Loading Quiz...</div>
 
-                    <div className="flex gap-3">
-                        <button onClick={() => setView('list')} className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition">Back to List</button>
-                        <button onClick={() => setView('quiz')} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition">Retry Quiz</button>
-                    </div>
+  // --- VIEW 1: ALREADY ATTEMPTED SCREEN ---
+  if (attemptData) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center border border-gray-200">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🏆</span>
                 </div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Quiz Completed!</h1>
+                <p className="text-gray-500 mb-6">You have already attempted this quiz.</p>
+                
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Your Score</p>
+                    <p className="text-4xl font-bold text-blue-600 mt-2">{attemptData.score} <span className="text-xl text-gray-400">/ {attemptData.totalQuestions}</span></p>
+                </div>
+
+                <button onClick={() => navigate('/my-enrollments')} className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 transition w-full">
+                    Back to Courses
+                </button>
             </div>
-        );
-    }
+        </div>
+      )
+  }
 
-    return null;
-};
+  // --- VIEW 2: QUIZ PLAYER (Normal) ---
+  const currentQuestion = quizData.questions[currentQuestionIndex]
 
-export default QuizPlayer;
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-10 px-4">
+      {/* Header & Timer */}
+      <div className="w-full max-w-2xl flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">{quizData.title}</h1>
+        {timeLeft !== null && (
+            <div className={`px-4 py-2 rounded font-mono font-bold text-lg border ${timeLeft < 60 ? 'bg-red-100 text-red-600 border-red-300 animate-pulse' : 'bg-blue-100 text-blue-600 border-blue-300'}`}>
+                ⏱ {formatTime(timeLeft)}
+            </div>
+        )}
+      </div>
+
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-2xl border border-gray-200">
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}></div>
+        </div>
+
+        <div className="mb-6">
+            <span className="text-sm text-gray-500 font-medium">Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
+            <h2 className="text-xl text-gray-800 font-semibold mt-2">{currentQuestion.questionText}</h2>
+        </div>
+
+        <div className="flex flex-col gap-3">
+            {currentQuestion.options.map((option, index) => (
+                <button 
+                    key={index}
+                    onClick={() => handleOptionSelect(index)}
+                    className={`text-left p-4 rounded border transition-all ${selectedAnswers[currentQuestionIndex] === index ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'border-gray-200 hover:bg-gray-50'}`}
+                >
+                    <span className="font-medium mr-3 text-gray-500">{String.fromCharCode(65 + index)}.</span>
+                    {option}
+                </button>
+            ))}
+        </div>
+
+        <div className="flex justify-between mt-8 pt-6 border-t border-gray-100">
+            <button onClick={handlePrevious} disabled={currentQuestionIndex === 0} className={`px-6 py-2 rounded ${currentQuestionIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}>Previous</button>
+            {currentQuestionIndex === quizData.questions.length - 1 ? (
+                <button onClick={() => handleSubmit(false)} className="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-medium">Submit Quiz</button>
+            ) : (
+                <button onClick={handleNext} className="bg-blue-600 text-white px-8 py-2 rounded hover:bg-blue-700 font-medium">Next Question</button>
+            )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default QuizPlayer
