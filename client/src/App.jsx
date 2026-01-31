@@ -21,7 +21,7 @@ import StudentTeams from './pages/student/StudentTeams'
 import GroupGenerator from './pages/educator/GroupGenerator'
 import CareerDashboard from './pages/student/CareerDashboard' 
 import StudentQuizList from './pages/student/StudentQuizList' // <--- 1. NEW IMPORT
-
+import Leaderboard from './pages/student/Leaderboard'
 const App = () => {
 
   const isEducatorRoute = useMatch('/educator/*');
@@ -43,7 +43,7 @@ const App = () => {
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/career-dashboard" element={<CareerDashboard />} />
-        
+        <Route path="/leaderboard" element={<Leaderboard />} />
         {/* --- UPDATED QUIZ ROUTES --- */}
         {/* 1. Show List of Quizzes for a Course */}
         <Route path="/course/quizzes/:courseId" element={<StudentQuizList />} />

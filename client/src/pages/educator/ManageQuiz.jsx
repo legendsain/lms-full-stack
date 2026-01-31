@@ -49,11 +49,9 @@ const ManageQuiz = () => {
             setSelectedQuiz(quiz);
             setQuizTitle(quiz.title);
             
-            // --- FIX 1: Ensure we load 'questionText' correctly ---
-            // If the DB has 'questionText', use it. If it has 'question' (old bad data), map it.
             const mappedQuestions = quiz.questions.map(q => ({
                 ...q,
-                questionText: q.questionText || q.question || "" // Handle legacy/mismatch
+                questionText: q.questionText || q.question || "" 
             }));
             setQuestions(mappedQuestions);
             
@@ -84,6 +82,32 @@ const ManageQuiz = () => {
         setActiveTab('manage');
     };
 
+    // --- NEW FUNCTION: DELETE QUIZ ---
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this quiz? This action cannot be undone.")) return;
+
+        try {
+            const token = await getToken();
+            const { data } = await axios.delete(backendUrl + `/api/quiz/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success("Quiz Deleted Successfully");
+                // If we are in editor view, go back to list
+                if (view === 'editor') {
+                    setView('list');
+                }
+                // Refresh list
+                fetchQuizzes();
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!file) return toast.error("Upload a file first");
         setGenLoading(true);
@@ -95,9 +119,7 @@ const ManageQuiz = () => {
             const token = await getToken();
             const { data } = await axios.post(backendUrl + '/api/quiz/generate', formData, { headers: { Authorization: `Bearer ${token}` }});
             if (data.success) {
-                // --- FIX 2: Map AI 'question' to 'questionText' ---
                 const formattedQuestions = data.quizData.map(q => {
-                    // Convert correct answer text to index
                     let correctIndex = 0;
                     if (typeof q.correctAnswer === 'string') {
                         const idx = q.options.findIndex(opt => opt === q.correctAnswer);
@@ -105,10 +127,8 @@ const ManageQuiz = () => {
                     } else {
                         correctIndex = q.correctAnswer;
                     }
-
-                    // Return object with 'questionText'
                     return { 
-                        questionText: q.question || q.questionText, // AI returns 'question', we need 'questionText'
+                        questionText: q.question || q.questionText, 
                         options: q.options,
                         correctAnswer: correctIndex
                     };
@@ -130,7 +150,7 @@ const ManageQuiz = () => {
             const payload = {
                 courseId,
                 title: quizTitle,
-                questions, // Now contains 'questionText'
+                questions,
                 passingPercentage: Number(passingPercentage),
                 timeLimit: Number(timeLimit),
                 quizId: selectedQuiz ? selectedQuiz._id : null
@@ -162,30 +182,19 @@ const ManageQuiz = () => {
         link.click();
     };
 
-    // --- FIX 3: Use 'questionText' in helpers ---
     const addManualQuestion = () => {
-        setQuestions([
-            ...questions, 
-            { 
-                questionText: "", // <--- FIXED
-                options: ["", "", "", ""], 
-                correctAnswer: 0 
-            }
-        ]);
+        setQuestions([...questions, { questionText: "", options: ["", "", "", ""], correctAnswer: 0 }]);
     };
-
     const updateQuestion = (index, field, value) => {
         const newQuestions = [...questions];
         newQuestions[index][field] = value;
         setQuestions(newQuestions);
     };
-
     const updateOption = (qIndex, oIndex, value) => {
         const newQuestions = [...questions];
         newQuestions[qIndex].options[oIndex] = value;
         setQuestions(newQuestions);
     };
-
     const setCorrectOption = (qIndex, oIndex) => {
         const newQuestions = [...questions];
         newQuestions[qIndex].correctAnswer = oIndex;
@@ -211,13 +220,24 @@ const ManageQuiz = () => {
                             <h3 className="text-lg font-semibold text-gray-600 group-hover:text-blue-600">Add New Quiz</h3>
                         </div>
                         {quizzes.map((quiz) => (
-                            <div key={quiz._id} onClick={() => openQuiz(quiz)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition cursor-pointer flex flex-col justify-between h-64">
-                                <div>
+                            <div key={quiz._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition flex flex-col justify-between h-64 relative">
+                                {/* --- DELETE BUTTON (List View) --- */}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(quiz._id); }} 
+                                    className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition"
+                                    title="Delete Quiz"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+
+                                <div onClick={() => openQuiz(quiz)} className="cursor-pointer">
                                     <div className="flex justify-between mb-4"><span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-bold">QUIZ</span><span className="text-xs text-gray-400">{new Date(quiz.createdAt).toLocaleDateString()}</span></div>
                                     <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2">{quiz.title}</h3>
                                     <p className="text-gray-500 text-sm">{quiz.questions.length} Questions • {quiz.timeLimit ? `${quiz.timeLimit} mins` : 'No Limit'}</p>
                                 </div>
-                                <span className="text-blue-600 text-sm font-semibold hover:underline mt-4 block">Manage & Results →</span>
+                                <span onClick={() => openQuiz(quiz)} className="text-blue-600 text-sm font-semibold hover:underline mt-4 block cursor-pointer">Manage & Results →</span>
                             </div>
                         ))}
                     </div>
@@ -247,6 +267,18 @@ const ManageQuiz = () => {
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pass (%)</label>
                                 <input type="number" min="1" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(e.target.value)} className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" />
                             </div>
+                            
+                            {/* --- DELETE BUTTON (Editor View) --- */}
+                            {selectedQuiz && (
+                                <button 
+                                    onClick={() => handleDelete(selectedQuiz._id)} 
+                                    className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition h-[42px] self-end"
+                                    title="Delete Quiz"
+                                >
+                                    Delete
+                                </button>
+                            )}
+                            
                             <button onClick={handleSave} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow-md transition h-[42px] self-end">Save Quiz</button>
                         </div>
                     </div>
@@ -284,13 +316,7 @@ const ManageQuiz = () => {
                                         <button onClick={() => {const newQ = questions.filter((_, i) => i !== qIdx); setQuestions(newQ)}} className="absolute top-4 right-4 text-gray-300 hover:text-red-500">✕</button>
                                         <div className="flex gap-3 mb-4 items-center">
                                             <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded text-sm">Q{qIdx+1}</span>
-                                            {/* --- FIX 4: Bind input to 'questionText' --- */}
-                                            <input 
-                                                className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" 
-                                                value={q.questionText} 
-                                                onChange={(e) => updateQuestion(qIdx, 'questionText', e.target.value)} 
-                                                placeholder="Type your question here..." 
-                                            />
+                                            <input className="font-medium text-gray-800 w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none pb-1" value={q.questionText} onChange={(e) => updateQuestion(qIdx, 'questionText', e.target.value)} placeholder="Type your question here..." />
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-0 md:ml-10">
                                             {q.options.map((opt, oIdx) => (

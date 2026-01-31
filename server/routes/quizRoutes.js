@@ -8,7 +8,8 @@ import {
     getSingleQuiz, 
     submitQuiz, 
     getQuizResults, 
-    getQuizByCourse 
+    getQuizByCourse,
+    deleteQuiz
 } from '../controllers/quizController.js';
 
 const quizRouter = express.Router();
@@ -21,7 +22,7 @@ quizRouter.post('/save', saveQuiz);
 quizRouter.get('/course/:courseId', getAllQuizzes); // Get List of all quizzes
 quizRouter.get('/results/:quizId', getQuizResults); // Get Results for One
 quizRouter.get('/:quizId', getSingleQuiz);          // Get One specific quiz
-
+quizRouter.delete('/:quizId', deleteQuiz);
 // Student Routes
 quizRouter.post('/submit', submitQuiz);
 

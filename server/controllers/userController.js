@@ -6,6 +6,7 @@ import stripe from "stripe"
 
 
 
+
 // Get User Data
 export const getUserData = async (req, res) => {
     try {
@@ -202,5 +203,23 @@ export const addUserRating = async (req, res) => {
         return res.json({ success: true, message: 'Rating added' });
     } catch (error) {
         return res.json({ success: false, message: error.message });
+    }
+};
+
+
+// Get Global Leaderboard
+export const getLeaderboard = async (req, res) => {
+    try {
+        // Fetch top 10 users sorted by points (descending)
+        // .select() is CRITICAL for performance and privacy. 
+        // We only return name, image, and points. We NEVER expose emails or IDs in a public list.
+        const leaderboard = await User.find({})
+            .sort({ 'gamification.points': -1 }) // -1 means Descending (High to Low)
+            .limit(10)
+            .select('name imageUrl gamification.points');
+
+        res.json({ success: true, leaderboard });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
 };

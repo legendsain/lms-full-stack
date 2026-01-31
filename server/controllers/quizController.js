@@ -146,59 +146,93 @@ export const getQuizResults = async (req, res) => {
     }
 };
 
-// 6. Submit Quiz
+
+// 6. Submit Quiz (UPDATED WITH GAMIFICATION ENGINE)
 export const submitQuiz = async (req, res) => {
     try {
-        const { courseId, quizId, answers } = req.body;
+        const { courseId, quizId, answers } = req.body; 
         const userId = req.auth.userId;
-        
-        // Check for duplicate attempt
+
+        // 1. Validate User & Quiz existence
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.json({ success: false, message: "Quiz not found" });
+
+        // 2. Prevent Duplicate Attempts (Data Integrity)
         const existingAttempt = await QuizResult.findOne({ quizId, userId });
         if (existingAttempt) {
             return res.json({ success: false, message: "You have already attempted this quiz." });
         }
 
-        const quiz = await Quiz.findById(quizId);
-        if (!quiz) return res.json({ success: false, message: "Quiz not found" });
-
+        // 3. Calculate Score
+        // (Ensures backend verifies answers, never trust the frontend)
         let score = 0;
         answers.forEach((selectedOptionIndex, questionIndex) => {
             const question = quiz.questions[questionIndex];
-            if (question && question.correctAnswer === selectedOptionIndex) {
+            if (question && question.correctAnswer === Number(selectedOptionIndex)) {
                 score++;
             }
         });
 
-        // Gamification
-        const user = await User.findById(userId);
-        let earnedPoints = 0;
-        earnedPoints += (score * 10);
+        // --- 4. THE REWARD ENGINE ---
+        
+        // Rule A: Base Points (10 XP per correct answer)
+        let earnedPoints = score * 10; 
+        
+        // Rule B: Perfection Bonus (Flat +50 XP if 100% score)
+        let isPerfectScore = false;
         if (score === quiz.questions.length && quiz.questions.length > 0) {
-            earnedPoints += 50;
+            earnedPoints += 50; 
+            isPerfectScore = true;
         }
 
-        if (user) {
-            user.gamification = user.gamification || {};
-            user.gamification.points = (user.gamification.points || 0) + earnedPoints;
-            user.gamification.tokens = (user.gamification.tokens || 0) + earnedPoints;
-            user.gamification.quizzesCompleted = (user.gamification.quizzesCompleted || 0) + 1;
-            user.gamification.lastActivity = new Date();
-            await user.save();
-        }
+        // Rule C: Tokens (Currency)
+        // For now, 1 XP = 1 Token. You can change this ratio later.
+        const earnedTokens = earnedPoints;
 
-        const result = new QuizResult({ userId, courseId, quizId, score, totalQuestions: quiz.questions.length });
+        // 5. Update User Stats (ATOMIC UPDATE)
+        // We use findByIdAndUpdate with $inc to prevent race conditions
+        const user = await User.findByIdAndUpdate(
+            userId,
+            {
+                $inc: { 
+                    'gamification.points': earnedPoints,
+                    'gamification.tokens': earnedTokens,
+                    'gamification.quizzesCompleted': 1
+                },
+                $set: { 
+                    'gamification.lastActivity': new Date() 
+                }
+            },
+            { new: true } // Return the updated user document
+        );
+
+        // 6. Save the Quiz Result
+        const result = new QuizResult({ 
+            userId, 
+            courseId, 
+            quizId, 
+            score, 
+            totalQuestions: quiz.questions.length 
+        });
         await result.save();
 
+        // 7. Send Response
         res.json({ 
             success: true, 
+            message: "Quiz Submitted Successfully",
             score, 
             totalQuestions: quiz.questions.length,
-            earnedPoints,
-            tokens: user.gamification.tokens 
+            // Send reward data back so frontend can show "You earned X points!"
+            rewards: {
+                points: earnedPoints,
+                tokens: earnedTokens,
+                isPerfectScore
+            },
+            newTotalTokens: user.gamification.tokens
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Submit Quiz Error:", error);
         res.json({ success: false, message: error.message });
     }
 };
@@ -215,6 +249,28 @@ export const getQuizByCourse = async (req, res) => {
         }
         const attempt = await QuizResult.findOne({ quizId: quiz._id, userId });
         res.json({ success: true, quiz, attempt });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+
+// 8. Delete Quiz
+export const deleteQuiz = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+        
+        // Delete the quiz itself
+        const quiz = await Quiz.findByIdAndDelete(quizId);
+        
+        if (!quiz) {
+            return res.json({ success: false, message: "Quiz not found" });
+        }
+
+        // Optional: Clean up student results for this quiz
+        await QuizResult.deleteMany({ quizId });
+
+        res.json({ success: true, message: "Quiz deleted successfully" });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
