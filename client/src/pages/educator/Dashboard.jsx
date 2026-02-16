@@ -4,90 +4,40 @@ import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loading from '../../components/student/Loading';
+import PredictiveAnalytics from '../../components/educator/PredictiveAnalytics'; // <--- 1. Import this
 
 const Dashboard = () => {
 
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext)
-
   const [dashboardData, setDashboardData] = useState(null)
 
   const fetchDashboardData = async () => {
     try {
-
       const token = await getToken()
-
       const { data } = await axios.get(backendUrl + '/api/educator/dashboard',
         { headers: { Authorization: `Bearer ${token}` } }
       )
-
       if (data.success) {
         setDashboardData(data.dashboardData)
       } else {
         toast.error(data.message)
       }
-
     } catch (error) {
       toast.error(error.message)
     }
   }
 
   useEffect(() => {
-
     if (isEducator) {
       fetchDashboardData()
     }
-
   }, [isEducator])
-
-  const studentsData = [
-    {
-      id: 1,
-      name: 'Richard Sanford',
-      profileImage: assets.profile_img,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    },
-    {
-      id: 2,
-      name: 'Enrique Murphy',
-      profileImage: assets.profile_img2,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    },
-    {
-      id: 3,
-      name: 'Alison Powell',
-      profileImage: assets.profile_img3,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    },
-    {
-      id: 4,
-      name: 'Richard Sanford',
-      profileImage: assets.profile_img,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    },
-    {
-      id: 5,
-      name: 'Enrique Murphy',
-      profileImage: assets.profile_img2,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    },
-    {
-      id: 6,
-      name: 'Alison Powell',
-      profileImage: assets.profile_img3,
-      courseTitle: 'Build Text to Image SaaS App in React JS',
-      date: '22 Aug, 2024'
-    }
-  ];
-
 
   return dashboardData ? (
     <div className='min-h-screen flex flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0'>
-      <div className='space-y-5'>
+      <div className='space-y-5 w-full'>
+        
+        {/* --- Metrics Cards --- */}
         <div className='flex flex-wrap gap-5 items-center'>
           <div className='flex items-center gap-3 shadow-card border border-blue-500 p-4 w-56 rounded-md'>
             <img src={assets.patients_icon} alt="patients_icon" />
@@ -111,6 +61,13 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* --- 2. NEW: Predictive Analytics Section --- */}
+        <div className="w-full max-w-4xl">
+           <PredictiveAnalytics />
+        </div>
+
+        {/* --- Latest Enrolments Table --- */}
         <div>
           <h2 className="pb-4 text-lg font-medium">Latest Enrolments</h2>
           <div className="flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md bg-white border border-gray-500/20">
