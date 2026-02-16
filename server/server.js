@@ -11,7 +11,7 @@ import courseRouter from './routes/courseRoute.js'
 import quizRouter from './routes/quizRoutes.js'
 import groupRouter from './routes/groupRoutes.js'
 import careerRouter from './routes/careerRoutes.js'
-
+import analyticsRouter from './routes/analyticsRoutes.js';
 // Initialize Express
 const app = express()
 
@@ -59,7 +59,7 @@ app.use('/api/user', userRouter)
 app.use('/api/quiz', quizRouter)
 app.use('/api/group', groupRouter)
 app.use('/api/career', careerRouter) // Now works because express.json() is above!
-
+app.use('/api/analytics', analyticsRouter);
 // Port
 const PORT = process.env.PORT || 5000
 
