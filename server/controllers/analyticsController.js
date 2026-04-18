@@ -2,11 +2,16 @@ import User from '../models/User.js';
 import QuizResult from '../models/QuizResult.js';
 import Course from '../models/Course.js';
 
-// Helper: Calculate Risk Score
+// Helper: Calculate Risk Score (Hardened against missing data)
 const calculateRisk = (student, quizResults, totalCourseQuizzes) => {
+    
     // 1. Recency Risk (40%)
-    const lastLogin = new Date(student.gamification.lastActivity || student.createdAt);
+    // FIX: Use Optional Chaining (?.) so it doesn't crash if gamification is missing.
+    // Fallback to createdAt, and if that's missing, fallback to today.
+    const activityDate = student?.gamification?.lastActivity || student?.createdAt || new Date();
+    const lastLogin = new Date(activityDate);
     const today = new Date();
+    
     const daysInactive = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
     
     // Cap inactive risk at 100 (if inactive > 30 days, max risk)
@@ -14,17 +19,15 @@ const calculateRisk = (student, quizResults, totalCourseQuizzes) => {
 
     // 2. Performance Risk (30%)
     let avgScore = 0;
-    if (quizResults.length > 0) {
+    if (quizResults && quizResults.length > 0) {
         const totalScore = quizResults.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
         avgScore = totalScore / quizResults.length;
     }
-    // If no quizzes taken, assume 0% performance (High Risk)
     const performanceRisk = 100 - avgScore;
 
     // 3. Engagement Risk (30%)
-    // Prevent division by zero if course has no quizzes
     const totalQuizzes = totalCourseQuizzes || 1; 
-    const completionRate = Math.min((quizResults.length / totalQuizzes) * 100, 100);
+    const completionRate = Math.min(((quizResults?.length || 0) / totalQuizzes) * 100, 100);
     const engagementRisk = 100 - completionRate;
 
     // Weighted Formula
@@ -33,7 +36,7 @@ const calculateRisk = (student, quizResults, totalCourseQuizzes) => {
     return {
         score: Math.round(totalRisk),
         factors: {
-            daysInactive,
+            daysInactive: daysInactive < 0 ? 0 : daysInactive, // Prevent negative days
             avgScore: Math.round(avgScore),
             completionRate: Math.round(completionRate)
         }
@@ -47,48 +50,50 @@ export const getAtRiskStudents = async (req, res) => {
 
         // 1. Fetch all courses created by this educator
         const courses = await Course.find({ educatorId });
-        const courseIds = courses.map(c => c._id);
+        
+        if (!courses || courses.length === 0) {
+             return res.json({ success: true, atRiskData: [] });
+        }
+
+        // Map ObjectIds to Strings for robust comparison
+        const courseIds = courses.map(c => c._id.toString());
 
         // 2. Fetch all students enrolled in these courses
-        // We use $in to find users who have these course IDs in their enrolledCourses
+        // FIX: Removed strict `role: 'student'` check. If they are enrolled, track them.
         const students = await User.find({ 
-            enrolledCourses: { $in: courseIds },
-            role: 'student' 
+            enrolledCourses: { $in: courseIds }
         });
 
         const atRiskData = [];
 
         // 3. Analyze each student
         for (const student of students) {
-            // Get student's results for these courses
+            
             const results = await QuizResult.find({ 
-                userId: student._id,
+                userId: student._id.toString(),
                 courseId: { $in: courseIds }
             });
 
-            // Get total quizzes available in their enrolled courses (Approximation)
-            // For precision, you'd calculate exact quizzes per course, 
-            // but for a summary, we can average it or check strictly.
-            // Let's check quizzes for the courses they are enrolled in.
-            const studentCourses = courses.filter(c => student.enrolledCourses.includes(c._id));
-            let totalQuizzesAvailable = 0;
-            studentCourses.forEach(c => {
-                 // Assuming you store quiz count or calculate it. 
-                 // If not, we can query Quiz collection. 
-                 // For now, let's assume 5 quizzes per course for the heuristic 
-                 // OR fetch strictly if performance allows.
-                 totalQuizzesAvailable += 5; 
-            });
+            // Calculate total quizzes roughly based on enrolled courses
+            const studentCourses = courses.filter(c => 
+                student.enrolledCourses.map(id => id.toString()).includes(c._id.toString())
+            );
+            
+            // Assuming 5 quizzes per course for baseline metric
+            let totalQuizzesAvailable = studentCourses.length * 5; 
+            
+            // Prevent dividing by zero
+            if (totalQuizzesAvailable === 0) totalQuizzesAvailable = 1;
 
             const riskAnalysis = calculateRisk(student, results, totalQuizzesAvailable);
 
-            // Filter: Only return students with Risk > 50%
+            // Filter: Return students with Risk > 50%
             if (riskAnalysis.score > 50) {
                 atRiskData.push({
                     studentId: student._id,
-                    name: student.name,
-                    email: student.email,
-                    imageUrl: student.imageUrl,
+                    name: student.name || "Unknown Student",
+                    email: student.email || "No Email",
+                    imageUrl: student.imageUrl || "https://via.placeholder.com/150",
                     riskScore: riskAnalysis.score,
                     factors: riskAnalysis.factors
                 });
@@ -101,6 +106,7 @@ export const getAtRiskStudents = async (req, res) => {
         res.json({ success: true, atRiskData });
 
     } catch (error) {
+        console.error("Analytics Error:", error); // Logs to Vercel/Terminal so we can see what breaks
         res.json({ success: false, message: error.message });
     }
 };
