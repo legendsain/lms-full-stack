@@ -6,11 +6,11 @@ import fs from "fs";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. Generate Quiz (No changes needed here)
+// 1. Generate Quiz (UPDATED FOR PROMPT ENGINEERING & TEACHER NOTES)
 export const generateQuiz = async (req, res) => {
     try {
         const file = req.file;
-        const { numQuestions } = req.body;
+        const { numQuestions, teacherNotes } = req.body; // <-- 1. Extract teacherNotes
         const count = numQuestions || 10;
 
         if (!file) return res.json({ success: false, message: "No file uploaded" });
@@ -20,18 +20,49 @@ export const generateQuiz = async (req, res) => {
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-        const prompt = `
-            You are an educational AI. Analyze the attached document and generate a quiz.
-            Output ONLY a valid JSON array of objects. Do not include markdown formatting.
-            Structure:
-            [
-              {
-                "question": "Question text here?",
-                "options": ["Option A", "Option B", "Option C", "Option D"],
-                "correctAnswer": "Option A"
-              }
-            ]
-            Generate exactly ${count} questions.
+        // --- 2. ADVANCED DYNAMIC PROMPT (UPDATED FOR STANDALONE QUESTIONS) ---
+        let prompt = `You are an expert pedagogical AI assistant. Your task is to review the attached document strictly to identify the overarching subject matter, core concepts, and topics being taught. 
+        
+        Using those identified topics as a guide, generate exactly ${count} multiple-choice questions. 
+        
+        CRITICAL INSTRUCTION: The student taking this quiz will NOT have access to the uploaded document. You MUST write the questions as standalone, general-knowledge questions about the subject. You are strictly forbidden from using phrases like "According to the document", "Based on the text", "As stated in the notes", or referring to the author.`;
+
+        // --- NEW: QUOTA-BASED FOCUS TOPIC ENFORCEMENT ---
+        if (teacherNotes && teacherNotes.trim() !== "") {
+            // Calculate that at least 60% of the questions MUST be about the notes
+            const focusCount = Math.max(1, Math.ceil(count * 0.6)); 
+            const generalCount = count - focusCount;
+
+            prompt += `
+            \n\n==================================================
+            ### TEACHER'S FOCUS TOPICS ###
+            "${teacherNotes}"
+            
+            CRITICAL DIRECTIVE: You are required to generate ${count} questions in total. 
+            - EXACTLY ${focusCount} of these questions MUST be directly about the "Teacher's Focus Topics" listed above.
+            - EXACTLY ${generalCount} of these questions should cover other general foundational knowledge from the document.
+            If you ignore this ratio, the test will be invalid.
+            ==================================================\n\n`;
+        }
+
+        // Add Strict Output Rules
+        prompt += `
+        Rules for Question Generation:
+        1. The questions must test the concepts found in the document, but must be phrased so anyone studying the subject could answer them without reading the specific file.
+        2. Provide exactly 4 options.
+        3. Do NOT use "All of the above" or "None of the above".
+        4. The correctAnswer must exactly match one of the options.
+
+        OUTPUT FORMAT:
+        Output ONLY a valid JSON array of objects. Do not include markdown formatting (\`\`\`json), conversational text, or explanations.
+        Structure Requirement:
+        [
+          {
+            "question": "Question text here?",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correctAnswer": "Option A"
+          }
+        ]
         `;
 
         const result = await model.generateContent([
@@ -43,19 +74,23 @@ export const generateQuiz = async (req, res) => {
         const cleanedText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
         const quizData = JSON.parse(cleanedText);
 
+        // Clean up file after success
         fs.unlinkSync(file.path);
         res.json({ success: true, quizData });
 
     } catch (error) {
         console.error(error);
+        // Clean up file if generation fails so it doesn't clutter your server
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
         res.json({ success: false, message: error.message });
     }
 };
 
-// 2. Save Quiz (UPDATED TO SAVE TIME LIMIT)
+// 2. Save Quiz 
 export const saveQuiz = async (req, res) => {
     try {
-        // --- ADDED timeLimit HERE ---
         const { courseId, quizId, title, questions, passingPercentage, timeLimit } = req.body;
         
         if (quizId) {
@@ -64,7 +99,7 @@ export const saveQuiz = async (req, res) => {
                 title, 
                 questions, 
                 passingPercentage, 
-                timeLimit: timeLimit || 0 // Save it (default 0)
+                timeLimit: timeLimit || 0 
             });
             res.json({ success: true, message: "Quiz Updated Successfully" });
         } else {
@@ -74,7 +109,7 @@ export const saveQuiz = async (req, res) => {
                 title, 
                 questions, 
                 passingPercentage,
-                timeLimit: timeLimit || 0 // Save it (default 0)
+                timeLimit: timeLimit || 0 
             });
             await newQuiz.save();
             res.json({ success: true, message: "Quiz Created Successfully" });
@@ -84,11 +119,10 @@ export const saveQuiz = async (req, res) => {
     }
 };
 
-// 3. Get All Quizzes (UPDATED TO FETCH TIME LIMIT)
+// 3. Get All Quizzes 
 export const getAllQuizzes = async (req, res) => {
     try {
         const { courseId } = req.params;
-        // --- ADDED timeLimit to selection ---
         const quizzes = await Quiz.find({ courseId }).select('title createdAt questions passingPercentage timeLimit');
         res.json({ success: true, quizzes });
     } catch (error) {
@@ -96,7 +130,7 @@ export const getAllQuizzes = async (req, res) => {
     }
 };
 
-// 4. Get Single Quiz (UPDATED: Checks for Previous Attempt)
+// 4. Get Single Quiz 
 export const getSingleQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
@@ -108,7 +142,7 @@ export const getSingleQuiz = async (req, res) => {
              return res.json({ success: false, message: "Quiz not found" });
         }
 
-        // 2. Check for User Identity (to see if they attempted it)
+        // 2. Check for User Identity 
         let attempt = null;
         if (req.auth && req.auth.userId) {
             const userId = req.auth.userId;
@@ -119,7 +153,7 @@ export const getSingleQuiz = async (req, res) => {
         res.json({ 
             success: true, 
             quiz, 
-            attempt // <--- This is the key! If this exists, the UI will show the Score.
+            attempt 
         });
 
     } catch (error) {
@@ -147,24 +181,20 @@ export const getQuizResults = async (req, res) => {
 };
 
 
-// 6. Submit Quiz (UPDATED WITH GAMIFICATION ENGINE)
+// 6. Submit Quiz 
 export const submitQuiz = async (req, res) => {
     try {
         const { courseId, quizId, answers } = req.body; 
         const userId = req.auth.userId;
 
-        // 1. Validate User & Quiz existence
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.json({ success: false, message: "Quiz not found" });
 
-        // 2. Prevent Duplicate Attempts (Data Integrity)
         const existingAttempt = await QuizResult.findOne({ quizId, userId });
         if (existingAttempt) {
             return res.json({ success: false, message: "You have already attempted this quiz." });
         }
 
-        // 3. Calculate Score
-        // (Ensures backend verifies answers, never trust the frontend)
         let score = 0;
         answers.forEach((selectedOptionIndex, questionIndex) => {
             const question = quiz.questions[questionIndex];
@@ -173,24 +203,17 @@ export const submitQuiz = async (req, res) => {
             }
         });
 
-        // --- 4. THE REWARD ENGINE ---
-        
-        // Rule A: Base Points (10 XP per correct answer)
+        // --- THE REWARD ENGINE ---
         let earnedPoints = score * 10; 
         
-        // Rule B: Perfection Bonus (Flat +50 XP if 100% score)
         let isPerfectScore = false;
         if (score === quiz.questions.length && quiz.questions.length > 0) {
             earnedPoints += 50; 
             isPerfectScore = true;
         }
 
-        // Rule C: Tokens (Currency)
-        // For now, 1 XP = 1 Token. You can change this ratio later.
         const earnedTokens = earnedPoints;
 
-        // 5. Update User Stats (ATOMIC UPDATE)
-        // We use findByIdAndUpdate with $inc to prevent race conditions
         const user = await User.findByIdAndUpdate(
             userId,
             {
@@ -203,10 +226,9 @@ export const submitQuiz = async (req, res) => {
                     'gamification.lastActivity': new Date() 
                 }
             },
-            { new: true } // Return the updated user document
+            { new: true } 
         );
 
-        // 6. Save the Quiz Result
         const result = new QuizResult({ 
             userId, 
             courseId, 
@@ -216,13 +238,11 @@ export const submitQuiz = async (req, res) => {
         });
         await result.save();
 
-        // 7. Send Response
         res.json({ 
             success: true, 
             message: "Quiz Submitted Successfully",
             score, 
             totalQuestions: quiz.questions.length,
-            // Send reward data back so frontend can show "You earned X points!"
             rewards: {
                 points: earnedPoints,
                 tokens: earnedTokens,
@@ -237,7 +257,7 @@ export const submitQuiz = async (req, res) => {
     }
 };
 
-// 7. Get Quiz By Course (For Students) - NOT USED IN NEW FLOW BUT GOOD TO KEEP
+// 7. Get Quiz By Course 
 export const getQuizByCourse = async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -254,20 +274,17 @@ export const getQuizByCourse = async (req, res) => {
     }
 };
 
-
 // 8. Delete Quiz
 export const deleteQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
         
-        // Delete the quiz itself
         const quiz = await Quiz.findByIdAndDelete(quizId);
         
         if (!quiz) {
             return res.json({ success: false, message: "Quiz not found" });
         }
 
-        // Optional: Clean up student results for this quiz
         await QuizResult.deleteMany({ quizId });
 
         res.json({ success: true, message: "Quiz deleted successfully" });

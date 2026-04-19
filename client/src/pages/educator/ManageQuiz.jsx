@@ -24,6 +24,7 @@ const ManageQuiz = () => {
     const [numQuestions, setNumQuestions] = useState(10);
     const [passingPercentage, setPassingPercentage] = useState(50);
     const [timeLimit, setTimeLimit] = useState(0);
+    const [teacherNotes, setTeacherNotes] = useState(""); // <-- NEW STATE FOR PROMPT ENGINEERING
     
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
@@ -78,11 +79,11 @@ const ManageQuiz = () => {
         setNumQuestions(10); 
         setPassingPercentage(50); 
         setTimeLimit(0);
+        setTeacherNotes(""); // <-- RESET STATE ON NEW QUIZ
         setView('editor');
         setActiveTab('manage');
     };
 
-    // --- NEW FUNCTION: DELETE QUIZ ---
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this quiz? This action cannot be undone.")) return;
 
@@ -94,11 +95,9 @@ const ManageQuiz = () => {
 
             if (data.success) {
                 toast.success("Quiz Deleted Successfully");
-                // If we are in editor view, go back to list
                 if (view === 'editor') {
                     setView('list');
                 }
-                // Refresh list
                 fetchQuizzes();
             } else {
                 toast.error(data.message);
@@ -114,6 +113,7 @@ const ManageQuiz = () => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('numQuestions', numQuestions); 
+        formData.append('teacherNotes', teacherNotes); // <-- APPEND NOTES TO BACKEND REQUEST
 
         try {
             const token = await getToken();
@@ -221,7 +221,6 @@ const ManageQuiz = () => {
                         </div>
                         {quizzes.map((quiz) => (
                             <div key={quiz._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition flex flex-col justify-between h-64 relative">
-                                {/* --- DELETE BUTTON (List View) --- */}
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleDelete(quiz._id); }} 
                                     className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition"
@@ -268,7 +267,6 @@ const ManageQuiz = () => {
                                 <input type="number" min="1" max="100" value={passingPercentage} onChange={(e) => setPassingPercentage(e.target.value)} className="w-full border border-gray-300 rounded p-2 mt-1 bg-gray-50" />
                             </div>
                             
-                            {/* --- DELETE BUTTON (Editor View) --- */}
                             {selectedQuiz && (
                                 <button 
                                     onClick={() => handleDelete(selectedQuiz._id)} 
@@ -292,21 +290,36 @@ const ManageQuiz = () => {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     {activeTab === 'manage' && (
                         <div>
-                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-gray-50">
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex flex-col">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label>
-                                        <input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-2 text-sm text-center outline-none focus:border-blue-500" />
+                            {/* --- MODIFIED AI GENERATION SECTION --- */}
+                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 mb-8 bg-gray-50">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-700">Auto-Generate with AI</h3>
+                                        <p className="text-xs text-gray-500 mt-1">Upload content (PDF/Text) to generate questions.</p>
                                     </div>
-                                    <label className="cursor-pointer bg-white border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2 text-sm font-medium">
-                                        <span className="truncate max-w-[120px]">{file ? file.name : "Choose File"}</span>
-                                        <input type="file" hidden accept=".pdf,.txt,.doc,.docx" onChange={(e) => setFile(e.target.files[0])} />
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col">
+                                            <label className="text-[10px] uppercase font-bold text-gray-500 mb-1">Count</label>
+                                            <input type="number" min="1" max="50" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-16 border border-gray-300 rounded p-2 text-sm text-center outline-none focus:border-blue-500" />
+                                        </div>
+                                        <label className="cursor-pointer bg-white border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm flex items-center gap-2 text-sm font-medium h-[38px] mt-4">
+                                            <span className="truncate max-w-[120px]">{file ? file.name : "Choose File"}</span>
+                                            <input type="file" hidden accept=".pdf,.txt,.doc,.docx" onChange={(e) => setFile(e.target.files[0])} />
+                                        </label>
+                                        <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50 shadow-md min-w-[100px] h-[38px] mt-4">{genLoading ? "Working..." : "Generate"}</button>
+                                    </div>
+                                </div>
+                                {/* NEW: Teacher Notes Textarea */}
+                                <div className="mt-4 border-t border-gray-200 pt-4">
+                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2 block">
+                                        Teacher Notes / Focus Topics (Optional)
                                     </label>
-                                    <button onClick={handleGenerate} disabled={genLoading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50 shadow-md min-w-[100px]">{genLoading ? "Working..." : "Generate"}</button>
+                                    <textarea 
+                                        className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 outline-none focus:border-blue-500 resize-none h-20 shadow-sm"
+                                        placeholder="e.g., Focus heavily on Chapter 3. Ensure questions test practical application rather than just definitions."
+                                        value={teacherNotes}
+                                        onChange={(e) => setTeacherNotes(e.target.value)}
+                                    />
                                 </div>
                             </div>
 
