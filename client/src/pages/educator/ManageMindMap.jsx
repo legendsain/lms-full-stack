@@ -16,6 +16,7 @@ const ManageMindMap = () => {
     // Data State
     const [topic, setTopic] = useState("");
     const [generatedSyntax, setGeneratedSyntax] = useState("");
+    const [draftSyntax, setDraftSyntax] = useState(""); // NEW: Fast local state for typing
     const [loading, setLoading] = useState(false);
     const [savedMaps, setSavedMaps] = useState([]);
 
@@ -30,6 +31,17 @@ const ManageMindMap = () => {
 
     useEffect(() => { fetchMindMaps(); }, [courseId]);
 
+    // NEW: The "Performance Bomb" Fix - 500ms Debounce Timer
+    useEffect(() => {
+        // Wait 500ms after the user stops typing to update the actual diagram
+        const handler = setTimeout(() => {
+            setGeneratedSyntax(draftSyntax);
+        }, 500);
+
+        // If the user types a new key before 500ms is up, cancel the timer and start over
+        return () => clearTimeout(handler);
+    }, [draftSyntax]);
+
     const handleGenerate = async () => {
         if (!topic.trim()) return toast.error("Please enter a topic");
         setLoading(true);
@@ -43,6 +55,7 @@ const ManageMindMap = () => {
 
             if (data.success) {
                 setGeneratedSyntax(data.mermaidSyntax);
+                setDraftSyntax(data.mermaidSyntax); // NEW: Update the draft editor too
                 toast.success("AI Draft Generated!");
                 setActiveTab('compiler'); 
             } else {
@@ -68,6 +81,7 @@ const ManageMindMap = () => {
             if (data.success) {
                 toast.success("Published successfully!");
                 setGeneratedSyntax(""); 
+                setDraftSyntax(""); // NEW: Clear the draft editor
                 setTopic(""); 
                 fetchMindMaps(); 
                 setActiveTab('saved'); 
@@ -79,7 +93,7 @@ const ManageMindMap = () => {
         }
     };
 
-    // NEW: Delete Handler
+    // Delete Handler
     const handleDelete = async (mapId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this diagram? Students will instantly lose access to it.");
         if (!confirmDelete) return;
@@ -92,7 +106,7 @@ const ManageMindMap = () => {
 
             if (data.success) {
                 toast.success("Diagram deleted successfully.");
-                fetchMindMaps(); // Refresh the UI automatically
+                fetchMindMaps(); 
             } else {
                 toast.error(data.message || "Failed to delete.");
             }
@@ -179,8 +193,8 @@ const ManageMindMap = () => {
                             {/* Editor */}
                             <div className="flex flex-col">
                                 <textarea 
-                                    value={generatedSyntax}
-                                    onChange={(e) => setGeneratedSyntax(e.target.value)}
+                                    value={draftSyntax} // NEW: Bound to fast draft state
+                                    onChange={(e) => setDraftSyntax(e.target.value)} // NEW: Updates draft instantly
                                     spellCheck="false"
                                     className="w-full h-[550px] p-5 bg-[#0d1117] text-[#58a6ff] font-mono text-sm rounded-xl border border-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 resize-none shadow-inner leading-relaxed"
                                     placeholder="Paste or type raw Mermaid.js syntax here..."
@@ -189,7 +203,7 @@ const ManageMindMap = () => {
                             {/* Preview */}
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-[550px] flex justify-center items-center overflow-auto p-4">
                                 {generatedSyntax.trim() ? (
-                                    <MermaidViewer chartSyntax={generatedSyntax} />
+                                    <MermaidViewer chartSyntax={generatedSyntax} /> // Renders only when Debounce triggers
                                 ) : (
                                     <div className="text-center text-gray-400">
                                         <div className="text-4xl mb-2">👁️</div>
