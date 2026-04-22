@@ -4,13 +4,15 @@ import MindMap from "../models/MindMap.js";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 1. Ask Gemini to generate the Mermaid.js syntax
+// 1. Ask Gemini to generate the Mermaid.js syntax
 export const generateMindMap = async (req, res) => {
     try {
         const { topic } = req.body; 
 
         if (!topic) return res.json({ success: false, message: "Topic is required" });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+        // USE THE HIGHLY STABLE 1.5 FLASH MODEL
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `You are an expert educational structuralist. Create a comprehensive mind map for the topic: "${topic}".
 
@@ -31,7 +33,17 @@ export const generateMindMap = async (req, res) => {
               Detail C
         `;
 
-        const result = await model.generateContent(prompt);
+        // --- NEW: STRICT 15-SECOND TIMEOUT TO PREVENT VERCEL 504 HANGS ---
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("AI is busy right now. Please try again in a moment.")), 15000)
+        );
+
+        // Race the Gemini API against the 15-second timer
+        const result = await Promise.race([
+            model.generateContent(prompt),
+            timeoutPromise
+        ]);
+
         let aiResponse = result.response.text();
 
         // Strip markdown if the AI accidentally adds it
@@ -41,6 +53,7 @@ export const generateMindMap = async (req, res) => {
 
     } catch (error) {
         console.error("MindMap Gen Error:", error);
+        // This will now catch the 15-second timeout OR actual API errors
         res.json({ success: false, message: error.message });
     }
 };
