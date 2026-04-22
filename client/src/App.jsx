@@ -22,6 +22,8 @@ import GroupGenerator from './pages/educator/GroupGenerator'
 import CareerDashboard from './pages/student/CareerDashboard' 
 import StudentQuizList from './pages/student/StudentQuizList' // <--- 1. NEW IMPORT
 import Leaderboard from './pages/student/Leaderboard'
+import ViewMindMaps from './pages/student/ViewMindMaps';
+import ManageMindMap from './pages/educator/ManageMindMap';
 const App = () => {
 
   const isEducatorRoute = useMatch('/educator/*');
@@ -44,6 +46,7 @@ const App = () => {
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/career-dashboard" element={<CareerDashboard />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/student/mindmaps/:courseId" element={<ViewMindMaps />} />
         {/* --- UPDATED QUIZ ROUTES --- */}
         {/* 1. Show List of Quizzes for a Course */}
         <Route path="/course/quizzes/:courseId" element={<StudentQuizList />} />
@@ -62,10 +65,12 @@ const App = () => {
           <Route path='edit-course/:courseId' element={<AddCourse />} />
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
+          <Route path="/educator/mindmap/:courseId" element={<ManageMindMap />} />
           
           {/* Educator Quiz & Group Routes */}
           <Route path='quiz/:courseId' element={<ManageQuiz />} />
           <Route path='groups/:courseId' element={<GroupGenerator />} />
+          <Route path="/educator/mindmap/:courseId" element={<ManageMindMap />} />
         </Route>
 
       </Routes>

@@ -64,43 +64,54 @@ const MyEnrollments = () => {
                     </thead>
                     <tbody className="text-gray-700">
                         {enrolledCourses.map((course, index) => (
-                            <tr key={index} className="border-b border-gray-500/20">
+                            <tr key={index} className="border-b border-gray-500/20 hover:bg-gray-50 transition-colors">
                                 <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 ">
-                                    <img src={course.courseThumbnail} alt="" className="w-14 sm:w-24 md:w-28" />
+                                    <img src={course.courseThumbnail} alt="" className="w-14 sm:w-24 md:w-28 rounded shadow-sm" />
                                     <div className='flex-1'>
-                                        <p className='mb-1 max-sm:text-sm'>{course.courseTitle}</p>
+                                        <p className='mb-1 max-sm:text-sm font-medium text-gray-800'>{course.courseTitle}</p>
                                         <Line className='bg-gray-300 rounded-full' strokeWidth={2} percent={progressArray[index] ? (progressArray[index].lectureCompleted * 100) / progressArray[index].totalLectures : 0} />
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 max-sm:hidden">{calculateCourseDuration(course)}</td>
                                 <td className="px-4 py-3 max-sm:hidden">
                                     {progressArray[index] && `${progressArray[index].lectureCompleted} / ${progressArray[index].totalLectures}`}
-                                    <span className='text-xs ml-2'>Lectures</span>
+                                    <span className='text-xs ml-2 text-gray-500'>Lectures</span>
                                 </td>
                                 <td className="px-4 py-3 max-sm:text-right">
-                                    <button 
-                                        onClick={() => navigate('/player/' + course._id)} 
-                                        className='px-3 sm:px-5 py-1.5 sm:py-2 bg-blue-600 max-sm:text-xs text-white'
-                                    >
-                                        {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 ? 'Completed' : 'On Going'}
-                                    </button>
-
-                                    {/* --- UPDATED: Navigate to Quiz List --- */}
-                                    <button 
-                                        // Changed from specific quiz link to list link
-                                        onClick={() => navigate('/course/quizzes/' + course._id)}
-                                        className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-green-600 max-sm:text-xs text-white'
-                                    >
-                                        Take Quiz
-                                    </button>
                                     
-                                    <button 
-                                        onClick={() => navigate('/student/teams/' + course._id)}
-                                        className='ml-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-indigo-600 max-sm:text-xs text-white rounded hover:bg-indigo-700 transition'
-                                    >
-                                        My Teams
-                                    </button>
+                                    {/* Action Buttons Container */}
+                                    <div className="flex flex-wrap items-center gap-2 max-sm:justify-end">
+                                        
+                                        <button 
+                                            onClick={() => navigate('/player/' + course._id)} 
+                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 max-sm:text-xs text-white rounded transition shadow-sm'
+                                        >
+                                            {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 ? 'Completed' : 'On Going'}
+                                        </button>
 
+                                        <button 
+                                            onClick={() => navigate('/course/quizzes/' + course._id)}
+                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 max-sm:text-xs text-white rounded transition shadow-sm'
+                                        >
+                                            Take Quiz
+                                        </button>
+
+                                        {/* --- NEW: MIND MAPS BUTTON --- */}
+                                        <button 
+                                            onClick={() => navigate('/student/mindmaps/' + course._id)}
+                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-600 hover:bg-purple-700 max-sm:text-xs text-white rounded transition shadow-sm'
+                                        >
+                                            Mind Maps
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={() => navigate('/student/teams/' + course._id)}
+                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 max-sm:text-xs text-white rounded transition shadow-sm'
+                                        >
+                                            My Teams
+                                        </button>
+
+                                    </div>
                                 </td>
                             </tr>
                         ))}

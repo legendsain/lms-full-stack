@@ -1,9 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { AppContext } from '../../context/AppContext'
-//import { navigate } from 'react-router-dom' // Ensure this matches your router version or use useContext
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { assets } from '../../assets/assets' // Ensure you have a trash/cross icon or use text
+import { assets } from '../../assets/assets' 
 
 const MyCourses = () => {
 
@@ -85,21 +84,29 @@ const MyCourses = () => {
             <div className='flex items-center gap-3 mt-4 md:mt-0'>
                 <button 
                     onClick={() => navigate('/educator/edit-course/' + course._id)}
-                    className='px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50'
+                    className='px-3 py-1.5 border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50 transition-colors'
                 >
                     Edit
                 </button>
                 
                 <button 
                     onClick={() => navigate('/educator/quiz/' + course._id)}
-                    className='px-3 py-1.5 border border-purple-300 text-purple-600 rounded text-sm hover:bg-purple-50'
+                    className='px-3 py-1.5 border border-blue-300 text-blue-600 rounded text-sm hover:bg-blue-50 transition-colors'
                 >
                     Quiz
                 </button>
 
+                {/* --- NEW MIND MAPS BUTTON --- */}
+                <button 
+                    onClick={() => navigate('/educator/mindmap/' + course._id)}
+                    className='px-3 py-1.5 border border-purple-300 text-purple-600 rounded text-sm hover:bg-purple-50 transition-colors'
+                >
+                    Mind Maps
+                </button>
+                
                 <button 
                     onClick={() => navigate('/educator/groups/' + course._id)}
-                    className='px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded text-sm hover:bg-indigo-50'
+                    className='px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded text-sm hover:bg-indigo-50 transition-colors'
                 >
                     Teams
                 </button>
@@ -107,7 +114,7 @@ const MyCourses = () => {
                 {/* --- DELETE BUTTON --- */}
                 <button 
                     onClick={() => handleDelete(course._id)}
-                    className='p-2 text-gray-400 hover:text-red-500 transition'
+                    className='p-2 text-gray-400 hover:text-red-500 transition-colors ml-2'
                     title="Delete Course"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
