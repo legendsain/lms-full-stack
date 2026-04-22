@@ -1,14 +1,12 @@
 import express from 'express';
 import { generateMindMap, saveMindMap, getCourseMindMaps } from '../controllers/mindmapController.js';
-import { requireAuth } from '@clerk/express'; 
+// Import your auth middleware if you have one to protect these routes
+// import { requireAuth } from '../middlewares/authMiddleware.js'; 
 
 const mindmapRouter = express.Router();
 
-// Educator Routes (Requires login)
-mindmapRouter.post('/generate', requireAuth, generateMindMap);
-mindmapRouter.post('/save', requireAuth, saveMindMap);
-
-// Public/Student Routes
+mindmapRouter.post('/generate', generateMindMap); 
+mindmapRouter.post('/save', saveMindMap);
 mindmapRouter.get('/course/:courseId', getCourseMindMaps);
 
 export default mindmapRouter;

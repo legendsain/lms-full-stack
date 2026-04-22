@@ -3,85 +3,71 @@ import MindMap from "../models/MindMap.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. Ask Gemini to generate the Mermaid.js syntax
+// 1. Generate the Mind Map Syntax using Gemini
 export const generateMindMap = async (req, res) => {
     try {
         const { topic } = req.body; 
-
         if (!topic) return res.json({ success: false, message: "Topic is required" });
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const prompt = `You are an expert educational structuralist. Create a comprehensive mind map for the topic: "${topic}".
-
+        const prompt = `You are an expert structuralist for Edunova. Create a comprehensive mind map for the topic: "${topic}".
         CRITICAL RULES:
-        1. You MUST output ONLY valid Mermaid.js 'mindmap' syntax.
+        1. Output ONLY valid Mermaid.js 'mindmap' syntax.
         2. START your response immediately with the word 'mindmap'. Do NOT use directions like TD or LR.
         3. Do not use markdown code blocks (like \`\`\`mermaid) anywhere.
-        4. Do not include any conversational text, introductions, or explanations.
-        5. Use the strict indentation format required by Mermaid.js.
-        6. Keep node text concise (1-4 words). Use parentheses () for standard nodes if needed.
+        4. Do not include any conversational text.
+        5. Use strict 2-space indentation.
+        6. Keep node text concise. Use parentheses () for nodes with spaces.
 
         Example Format:
         mindmap
           root((Topic Name))
             Subtopic 1
-              Detail A
-              Detail B
+              (Detail A)
+              (Detail B)
             Subtopic 2
-              Detail C
+              (Detail C)
         `;
 
-        // 15-second timeout to prevent Vercel 504 Hangs
+        // 15-second timeout to prevent server hangs
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("AI is busy right now. Please try again in a moment.")), 15000)
+            setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 15000)
         );
 
-        // Race the Gemini API against the 15-second timer
-        const result = await Promise.race([
-            model.generateContent(prompt),
-            timeoutPromise
-        ]);
-
+        const result = await Promise.race([ model.generateContent(prompt), timeoutPromise ]);
         let aiResponse = result.response.text();
 
-        // Robust cleanup: Strip any accidental markdown blocks that Gemini might still output
-        let cleanSyntax = aiResponse
-            .replace(/```mermaid/gi, "")
-            .replace(/```/g, "")
-            .trim();
-        
-        // Failsafe: Ensure it explicitly starts with 'mindmap'
+        // Clean up any accidental markdown the AI includes
+        let cleanSyntax = aiResponse.replace(/```mermaid/gi, "").replace(/```/g, "").trim();
         if (!cleanSyntax.toLowerCase().startsWith("mindmap")) {
              cleanSyntax = `mindmap\n${cleanSyntax}`;
         }
 
-        console.log("Cleaned Syntax sent to frontend:\n", cleanSyntax); // Backend Debug
-
         res.json({ success: true, mermaidSyntax: cleanSyntax });
-
     } catch (error) {
-        console.error("MindMap Gen Error:", error);
+        console.error("Generate Error:", error);
         res.json({ success: false, message: error.message });
     }
 };
 
-// 2. Save the Mind Map to the Database
+// 2. Save Map to DB
 export const saveMindMap = async (req, res) => {
     try {
         const { courseId, title, mermaidSyntax } = req.body;
-        const educatorId = req.auth.userId;
+        // Assuming your auth middleware puts the user ID in req.auth.userId
+        const educatorId = req.auth?.userId || "educator_placeholder"; 
 
         const newMindMap = new MindMap({ courseId, educatorId, title, mermaidSyntax });
         await newMindMap.save();
 
-        res.json({ success: true, message: "Mind map published to course!" });
+        res.json({ success: true, message: "Saved successfully!" });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 };
 
-// 3. Fetch Mind Maps for Students/Teachers
+// 3. Get Maps for a Course
 export const getCourseMindMaps = async (req, res) => {
     try {
         const { courseId } = req.params;

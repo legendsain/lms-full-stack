@@ -8,7 +8,7 @@ import MermaidViewer from '../../components/common/MermaidViewer';
 const ViewMindMaps = () => {
     const { courseId } = useParams();
     const navigate = useNavigate();
-    const { backendUrl } = useContext(AppContext);
+    const { backendUrl, getToken } = useContext(AppContext);
     
     const [mindMaps, setMindMaps] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,11 +17,16 @@ const ViewMindMaps = () => {
     useEffect(() => {
         const fetchMindMaps = async () => {
             try {
-                const { data } = await axios.get(`${backendUrl}/api/mindmap/course/${courseId}`);
+                const token = await getToken(); // Optional: If you secured the route
+                const { data } = await axios.get(`${backendUrl}/api/mindmap/course/${courseId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
                 if (data.success) {
                     setMindMaps(data.mindMaps);
                 }
             } catch (error) {
+                console.error("Failed to load mind maps:", error);
                 toast.error("Failed to load mind maps");
             }
             setLoading(false);
@@ -54,8 +59,9 @@ const ViewMindMaps = () => {
                         {mindMaps.map(map => (
                             <div key={map._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                                 <h3 className="text-xl font-bold mb-4 text-blue-600 border-b pb-2">{map.title}</h3>
-                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                                    <MermaidViewer chartSyntax={map.mermaidSyntax} />
+                                <div className="bg-white rounded-lg border border-gray-100 overflow-hidden shadow-sm">
+                                    {/* CRITICAL FIX: Added the key prop here so Mermaid renders correctly */}
+                                    <MermaidViewer key={map.mermaidSyntax} chartSyntax={map.mermaidSyntax} />
                                 </div>
                             </div>
                         ))}
