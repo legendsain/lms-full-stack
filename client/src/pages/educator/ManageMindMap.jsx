@@ -15,8 +15,9 @@ const ManageMindMap = () => {
     
     // Data State
     const [topic, setTopic] = useState("");
+    const [diagramType, setDiagramType] = useState("mindmap"); // NEW: Format routing state
     const [generatedSyntax, setGeneratedSyntax] = useState("");
-    const [draftSyntax, setDraftSyntax] = useState(""); // NEW: Fast local state for typing
+    const [draftSyntax, setDraftSyntax] = useState(""); 
     const [loading, setLoading] = useState(false);
     const [savedMaps, setSavedMaps] = useState([]);
 
@@ -31,14 +32,11 @@ const ManageMindMap = () => {
 
     useEffect(() => { fetchMindMaps(); }, [courseId]);
 
-    // NEW: The "Performance Bomb" Fix - 500ms Debounce Timer
+    // The "Performance Bomb" Fix - 500ms Debounce Timer
     useEffect(() => {
-        // Wait 500ms after the user stops typing to update the actual diagram
         const handler = setTimeout(() => {
             setGeneratedSyntax(draftSyntax);
         }, 500);
-
-        // If the user types a new key before 500ms is up, cancel the timer and start over
         return () => clearTimeout(handler);
     }, [draftSyntax]);
 
@@ -48,14 +46,15 @@ const ManageMindMap = () => {
 
         try {
             const token = await getToken();
+            // NEW: Send both topic AND diagramType to the backend
             const { data } = await axios.post(`${backendUrl}/api/mindmap/generate`, 
-                { topic },
+                { topic, diagramType },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
             if (data.success) {
                 setGeneratedSyntax(data.mermaidSyntax);
-                setDraftSyntax(data.mermaidSyntax); // NEW: Update the draft editor too
+                setDraftSyntax(data.mermaidSyntax); 
                 toast.success("AI Draft Generated!");
                 setActiveTab('compiler'); 
             } else {
@@ -81,7 +80,7 @@ const ManageMindMap = () => {
             if (data.success) {
                 toast.success("Published successfully!");
                 setGeneratedSyntax(""); 
-                setDraftSyntax(""); // NEW: Clear the draft editor
+                setDraftSyntax(""); 
                 setTopic(""); 
                 fetchMindMaps(); 
                 setActiveTab('saved'); 
@@ -148,27 +147,51 @@ const ManageMindMap = () => {
                     </button>
                 </div>
 
-                {/* TAB 1: AI Generator */}
+                {/* TAB 1: AI Generator (NEW LAYOUT) */}
                 {activeTab === 'ai' && (
-                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-3xl animate-fadeIn">
+                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-4xl animate-fadeIn">
                         <h2 className="text-xl font-bold mb-2 text-gray-800">Generate with Edunova AI</h2>
-                        <p className="text-gray-500 mb-6 text-sm">Enter a core concept and our AI will structuralize it into a professional diagram for your students.</p>
-                        <div className="flex flex-col md:flex-row gap-4">
-                            <input 
-                                type="text" 
-                                placeholder="Enter topic (e.g., The React Virtual DOM)"
-                                className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                            />
-                            <button 
-                                onClick={handleGenerate} 
-                                disabled={loading}
-                                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium min-w-[180px] transition-all"
-                            >
-                                {loading ? "Thinking..." : "Generate Draft"}
-                            </button>
+                        <p className="text-gray-500 mb-6 text-sm">Enter a core concept and select a visual format. Our AI will structuralize it instantly.</p>
+                        
+                        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                            
+                            {/* NEW: The Dropdown Selector */}
+                            <div className="flex flex-col w-full md:w-1/4">
+                                <label className="text-xs font-bold text-gray-500 uppercase mb-1">Format</label>
+                                <select 
+                                    value={diagramType}
+                                    onChange={(e) => setDiagramType(e.target.value)}
+                                    className="p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-gray-700 cursor-pointer w-full"
+                                >
+                                    <option value="mindmap">🧠 Mind Map</option>
+                                    <option value="flowchart">↘️ Flowchart</option>
+                                    <option value="state">🔄 State Cycle</option>
+                                </select>
+                            </div>
+
+                            {/* The Topic Input */}
+                            <div className="flex flex-col flex-1 w-full">
+                                <label className="text-xs font-bold text-gray-500 uppercase mb-1">Topic</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g., The React Virtual DOM"
+                                    className="p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all w-full"
+                                    value={topic}
+                                    onChange={(e) => setTopic(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                                />
+                            </div>
+
+                            {/* The Generate Button */}
+                            <div className="flex flex-col w-full md:w-auto md:mt-5">
+                                <button 
+                                    onClick={handleGenerate} 
+                                    disabled={loading}
+                                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium min-w-[180px] transition-all h-[50px]"
+                                >
+                                    {loading ? "Thinking..." : "Generate Draft"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -193,17 +216,17 @@ const ManageMindMap = () => {
                             {/* Editor */}
                             <div className="flex flex-col">
                                 <textarea 
-                                    value={draftSyntax} // NEW: Bound to fast draft state
-                                    onChange={(e) => setDraftSyntax(e.target.value)} // NEW: Updates draft instantly
+                                    value={draftSyntax} 
+                                    onChange={(e) => setDraftSyntax(e.target.value)} 
                                     spellCheck="false"
                                     className="w-full h-[550px] p-5 bg-[#0d1117] text-[#58a6ff] font-mono text-sm rounded-xl border border-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 resize-none shadow-inner leading-relaxed"
                                     placeholder="Paste or type raw Mermaid.js syntax here..."
                                 />
                             </div>
                             {/* Preview */}
-                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-[550px] flex justify-center items-center overflow-auto p-4">
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-[550px] flex justify-center items-center overflow-auto p-4 relative">
                                 {generatedSyntax.trim() ? (
-                                    <MermaidViewer chartSyntax={generatedSyntax} /> // Renders only when Debounce triggers
+                                    <MermaidViewer chartSyntax={generatedSyntax} />
                                 ) : (
                                     <div className="text-center text-gray-400">
                                         <div className="text-4xl mb-2">👁️</div>
@@ -244,7 +267,7 @@ const ManageMindMap = () => {
                                             </button>
                                         </div>
                                         
-                                        <div className="bg-gray-50 rounded-lg border border-gray-100 overflow-x-auto p-4 min-h-[200px] flex justify-center items-center">
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 overflow-hidden h-[300px] flex justify-center items-center relative">
                                             <MermaidViewer chartSyntax={map.mermaidSyntax} />
                                         </div>
                                     </div>

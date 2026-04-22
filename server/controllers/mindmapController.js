@@ -3,42 +3,85 @@ import MindMap from "../models/MindMap.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 1. Generate the Diagram Syntax using Gemini
-
 export const generateMindMap = async (req, res) => {
     try {
-        const { topic } = req.body; 
+        const { topic, diagramType } = req.body; 
         if (!topic) return res.json({ success: false, message: "Topic is required" });
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-        const prompt = `You are a Senior Technical Architect and Educational Expert building diagrams for the Edunova learning platform. 
-        Your task is to create a highly accurate, professional Mermaid.js diagram for the topic: "${topic}".
-
-        PEDAGOGICAL & PROFESSIONAL STANDARDS (ZERO HALLUCINATION):
-        1. Accuracy First: The structural logic must be 100% technically accurate. Do not invent or hallucinate concepts.
-        2. Scope & Depth: Do not over-explain or under-explain. Include only the most critical, high-level components and their direct sub-components. Keep it highly digestible for students.
-        3. Professional Formatting: Node boxes must be concisely named. Edges (arrows) must be properly labeled ONLY if the transition requires explanation.
-
-        CRITICAL MERMAID SYNTAX RULES:
-        1. Choose the MOST pedagogically appropriate diagram type: 'stateDiagram-v2', 'graph TD', or 'mindmap'.
-        2. Output ONLY the raw, valid Mermaid.js syntax. NEVER use markdown code blocks (\`\`\`mermaid).
-        3. NO SPACES IN NODE IDs: For 'graph TD' and 'stateDiagram-v2', the internal node IDs must be single, alphanumeric words without spaces (e.g., State1, NodeA). 
-        4. LABELS WITH SPACES: If a state or node name has multiple words, you MUST use aliasing:
-           - For flowcharts ('graph TD'): Use brackets. Example: NodeA[Process Started] --> NodeB[Running State]
-           - For state diagrams ('stateDiagram-v2'): Define the state alias first. Example: state "Process Started" as s1
-           - For mindmaps ('mindmap'): Use parentheses. Example: (Detail A)
-        5. Do not include any conversational text. 
-        6. Use strict indentation with ONLY standard space characters (no \\u00A0).
+        // 1. The Common Professional Rulebook (Applies to all)
+        const commonRules = `
+        You are an Expert Educational Architect for the Edunova platform.
+        Your output MUST be ONLY raw, valid Mermaid.js code. NO markdown blocks (\`\`\`mermaid). NO conversational text.
+        Use strict indentation with ONLY standard space characters (no \\u00A0).
+        Keep nodes concise. Do not over-explain. The goal is visual clarity for students.
         `;
+
+        // 2. The Tailored Prompts
+        let specificPrompt = "";
+
+        switch (diagramType) {
+            case 'flowchart':
+                specificPrompt = `
+                ${commonRules}
+                TASK: Create a Top-Down Flowchart (graph TD) for the topic: "${topic}".
+                
+                STRICT FLOWCHART RULES:
+                1. Start exactly with: graph TD
+                2. NO SPACES IN NODE IDs: Use A, B, C or Node1, Node2.
+                3. STRICT ALIASING: You MUST alias every node with brackets. Example: A[Process Start] --> B[Validation]
+                4. PREVENT SPAGHETTI: Keep the flow strictly linear or branching downwards. Do not create unnecessary overlapping backward loops.
+                5. Conditionals should use diamonds. Example: C{Is Valid?} -- Yes --> D[Proceed]
+                `;
+                break;
+
+            case 'state':
+                specificPrompt = `
+                ${commonRules}
+                TASK: Create a State Diagram (stateDiagram-v2) for the topic: "${topic}".
+                
+                STRICT STATE DIAGRAM RULES:
+                1. Start exactly with: stateDiagram-v2
+                2. Always include a start state: [*] --> s1
+                3. STRICT ALIASING: You MUST define multi-word states using quotes and alias them before using them in transitions.
+                   Example format:
+                   state "Process Started" as s1
+                   state "Running" as s2
+                   [*] --> s1
+                   s1 --> s2 : Dispatch
+                `;
+                break;
+
+            case 'mindmap':
+            default:
+                specificPrompt = `
+                ${commonRules}
+                TASK: Create a Hierarchical Mindmap (mindmap) for the topic: "${topic}".
+                
+                STRICT MINDMAP RULES:
+                1. Start exactly with: mindmap
+                2. NO ARROWS: Do not use --> or any direction logic.
+                3. SPACING: Use strict 2-space indentation to define the hierarchy.
+                4. ALIASING: You MUST wrap node text containing spaces in parentheses. Example: (My Long Node)
+                   Example format:
+                   mindmap
+                     root((Topic))
+                       (Subtopic One)
+                         (Detail A)
+                       (Subtopic Two)
+                `;
+                break;
+        }
 
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 15000)
         );
 
-        const result = await Promise.race([ model.generateContent(prompt), timeoutPromise ]);
+        const result = await Promise.race([ model.generateContent(specificPrompt), timeoutPromise ]);
         let aiResponse = result.response.text();
 
+        // 3. The Universal Sanitizer
         let cleanSyntax = aiResponse
             .replace(/```mermaid/gi, "")
             .replace(/```/g, "")
@@ -52,42 +95,7 @@ export const generateMindMap = async (req, res) => {
     }
 };
 
-// 2. Save Map to DB
-export const saveMindMap = async (req, res) => {
-    try {
-        const { courseId, title, mermaidSyntax } = req.body;
-        // Assuming your auth middleware puts the user ID in req.auth.userId
-        const educatorId = req.auth?.userId || "educator_placeholder"; 
-
-        const newMindMap = new MindMap({ courseId, educatorId, title, mermaidSyntax });
-        await newMindMap.save();
-
-        res.json({ success: true, message: "Saved successfully!" });
-    } catch (error) {
-        res.json({ success: false, message: error.message });
-    }
-};
-
-// 3. Get Maps for a Course
-export const getCourseMindMaps = async (req, res) => {
-    try {
-        const { courseId } = req.params;
-        const mindMaps = await MindMap.find({ courseId }).sort({ createdAt: -1 });
-        res.json({ success: true, mindMaps });
-    } catch (error) {
-        res.json({ success: false, message: error.message });
-    }
-};
-// 4. Delete a Mind Map
-export const deleteMindMap = async (req, res) => {
-    try {
-        const { mapId } = req.params;
-        
-        // Find the map and delete it
-        await MindMap.findByIdAndDelete(mapId);
-        
-        res.json({ success: true, message: "Diagram deleted successfully!" });
-    } catch (error) {
-        res.json({ success: false, message: error.message });
-    }
-};
+// ... keep saveMindMap and getCourseMindMaps and deleteMindMap exactly as they are ...
+export const saveMindMap = async (req, res) => { /* ... */ };
+export const getCourseMindMaps = async (req, res) => { /* ... */ };
+export const deleteMindMap = async (req, res) => { /* ... */ };

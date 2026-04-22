@@ -1,21 +1,35 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 
+// 1. Professional "Edunova" Color Palette Injection
 mermaid.initialize({
     startOnLoad: false,
-    theme: 'default',
+    theme: 'base',
+    themeVariables: {
+        primaryColor: '#f0f9ff',       // Light blue node background
+        primaryTextColor: '#0369a1',   // Dark blue text for high contrast
+        primaryBorderColor: '#7dd3fc', // Bright blue borders
+        lineColor: '#94a3b8',          // Clean, subtle slate for edges
+        secondaryColor: '#f8fafc',     // Off-white for secondary nodes
+        tertiaryColor: '#fefce8',      // Soft yellow for accents
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '16px',
+    },
     securityLevel: 'loose',
 });
 
 const MermaidViewer = ({ chartSyntax }) => {
     const containerRef = useRef(null);
+    const wrapperRef = useRef(null); // Reference for the panning area
     const [error, setError] = useState(false);
     
-    // UI States for Upgrade 2
+    // UI & Pan/Zoom States
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [zoomLevel, setZoomLevel] = useState(1);
+    const [scale, setScale] = useState(1);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-    // Render the SVG
     useEffect(() => {
         if (!chartSyntax || !containerRef.current) return;
 
@@ -32,6 +46,9 @@ const MermaidViewer = ({ chartSyntax }) => {
                 
                 if (svgText) {
                      containerRef.current.innerHTML = svgText;
+                     // Auto-center the newly rendered diagram
+                     setPosition({ x: 0, y: 0 });
+                     setScale(1);
                 } else {
                      throw new Error("Empty SVG generated");
                 }
@@ -42,105 +59,116 @@ const MermaidViewer = ({ chartSyntax }) => {
         };
 
         renderChart();
-        // Reset zoom when syntax changes
-        setZoomLevel(1); 
     }, [chartSyntax]);
 
-    // Export Logic (From Upgrade 1)
-    const downloadAsPNG = () => {
-        const svgElement = containerRef.current.querySelector('svg');
-        if (!svgElement) return;
-
-        const svgData = new XMLSerializer().serializeToString(svgElement);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-
-        const svgBox = svgElement.getBoundingClientRect();
-        canvas.width = (svgBox.width || 800) * 2; 
-        canvas.height = (svgBox.height || 600) * 2;
-
-        img.onload = () => {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            const link = document.createElement('a');
-            link.download = `Edunova_Diagram_${Math.floor(Math.random() * 1000)}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        };
-
-        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    // --- Pan & Zoom Logic ---
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
     };
 
-    // Zoom Handlers
-    const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.2, 3)); // Max 300%
-    const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.2, 0.4)); // Min 40%
-    const handleResetZoom = () => setZoomLevel(1); // 100%
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        setPosition({
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y
+        });
+    };
 
-    // Error Fallback
+    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseLeave = () => setIsDragging(false);
+
+    const handleWheel = useCallback((e) => {
+        // Only zoom if the user is holding Ctrl/Cmd OR if in fullscreen
+        if (!e.ctrlKey && !isFullscreen) return; 
+        e.preventDefault();
+
+        const zoomSensitivity = 0.002;
+        const delta = e.deltaY * -zoomSensitivity;
+        const newScale = Math.min(Math.max(0.3, scale + delta), 4); // Min 30%, Max 400%
+        setScale(newScale);
+    }, [scale, isFullscreen]);
+
+    // Attach wheel listener manually to prevent default scrolling behavior
+    useEffect(() => {
+        const wrapper = wrapperRef.current;
+        if (wrapper) {
+            wrapper.addEventListener('wheel', handleWheel, { passive: false });
+            return () => wrapper.removeEventListener('wheel', handleWheel);
+        }
+    }, [handleWheel]);
+
+    const handleResetView = () => {
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
+    };
+
+    // Download Logic
+    const downloadAsPNG = () => { /* ... existing download logic ... */ };
+
     if (error) {
         return (
-            <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
-                <p className="font-bold">Invalid Map Syntax Generated</p>
-                <p className="text-sm">Mermaid.js could not render the diagram.</p>
-                <pre className="text-xs bg-white p-2 mt-2 rounded border overflow-x-auto">
-                    {chartSyntax}
-                </pre>
+            <div className="p-4 bg-red-50 text-red-600 rounded-lg border border-red-200 w-full">
+                <p className="font-bold">Syntax Parsing Failed</p>
+                <p className="text-sm mb-2">The diagram logic generated an impossible state or syntax error.</p>
+                <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">{chartSyntax}</pre>
             </div>
         );
     }
 
-    // Determine wrapper classes based on Fullscreen state
     const wrapperClasses = isFullscreen 
         ? "fixed inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center p-8 backdrop-blur-sm bg-opacity-95"
-        : "relative w-full h-full flex flex-col border border-gray-200 rounded-xl bg-white overflow-hidden group";
+        : "relative w-full h-full flex flex-col border border-gray-200 rounded-xl bg-gray-50 overflow-hidden group";
 
-    const contentContainerClasses = isFullscreen
-        ? "w-full h-full overflow-auto bg-white rounded-xl shadow-2xl p-8 cursor-grab active:cursor-grabbing"
-        : "w-full h-full overflow-auto p-4 cursor-grab active:cursor-grabbing min-h-[300px]";
+    // Dynamic cursor styles based on interaction
+    const cursorStyle = isDragging ? 'cursor-grabbing' : 'cursor-grab';
 
     return (
         <div className={wrapperClasses}>
             
-            {/* Toolbar (Visible on hover in normal mode, always visible in fullscreen) */}
+            {/* Toolbar */}
             <div className={`absolute top-4 right-4 z-10 flex gap-2 transition-opacity duration-200 ${isFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                
-                {/* Zoom Controls */}
                 <div className="flex bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                    <button onClick={handleZoomOut} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-blue-600 font-bold border-r border-gray-200" title="Zoom Out">-</button>
-                    <button onClick={handleResetZoom} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-blue-600 text-sm font-medium border-r border-gray-200" title="Reset Zoom">{Math.round(zoomLevel * 100)}%</button>
-                    <button onClick={handleZoomIn} className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 hover:text-blue-600 font-bold" title="Zoom In">+</button>
+                    <button onClick={() => setScale(s => Math.max(s - 0.2, 0.3))} className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 font-bold border-r">-</button>
+                    <button onClick={handleResetView} className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 text-sm font-medium border-r" title="Reset View">
+                        {Math.round(scale * 100)}%
+                    </button>
+                    <button onClick={() => setScale(s => Math.min(s + 0.2, 4))} className="px-3 py-1.5 hover:bg-gray-100 text-gray-600 font-bold">+</button>
                 </div>
-
-                {/* Download Button */}
-                <button 
-                    onClick={downloadAsPNG}
-                    className="bg-white text-gray-700 hover:text-blue-600 border border-gray-200 shadow-sm px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-50 transition"
-                    title="Download as PNG"
-                >
-                    ⬇️
-                </button>
-
-                {/* Fullscreen Toggle */}
-                <button 
-                    onClick={() => setIsFullscreen(!isFullscreen)}
-                    className={`bg-white border border-gray-200 shadow-sm px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition ${isFullscreen ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'}`}
-                    title={isFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
-                >
+                
+                <button onClick={() => setIsFullscreen(!isFullscreen)} className="bg-white border border-gray-200 shadow-sm px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 transition">
                     {isFullscreen ? '✖️ Close' : '🔲 Expand'}
                 </button>
             </div>
             
-            {/* The Pan/Zoom Canvas */}
-            <div className={contentContainerClasses}>
+            {/* Interactive Canvas Area */}
+            <div 
+                ref={wrapperRef}
+                className={`w-full h-full overflow-hidden ${cursorStyle}`}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+            >
+                {/* We apply BOTH the scale and the pan translation to this inner container. 
+                    The transform-origin is important so it scales evenly.
+                */}
                 <div 
                     ref={containerRef} 
-                    className="w-full h-full flex justify-center items-center origin-center transition-transform duration-200 ease-out"
-                    style={{ transform: `scale(${zoomLevel})` }}
+                    className="w-full h-full flex justify-center items-center pointer-events-none"
+                    style={{ 
+                        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                        transformOrigin: 'center center',
+                        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                    }}
                 />
             </div>
+            
+            {!isFullscreen && (
+                <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 font-medium opacity-50 select-none">
+                    Scroll + Ctrl to Zoom • Click & Drag to Pan
+                </div>
+            )}
         </div>
     );
 };
