@@ -8,15 +8,23 @@ const MindMapGenerator = ({ courseId }) => {
     const [loading, setLoading] = useState(false);
 
     const handleGenerate = async () => {
+        if (!topic.trim()) return alert("Please enter a topic");
         setLoading(true);
+        setGeneratedSyntax(""); // Clear previous map while loading
+        
         try {
-            // Replace with your actual token fetching logic
+            // Adjust endpoint if your route structure is different
             const { data } = await axios.post('/api/mindmap/generate', { topic });
+            
             if (data.success) {
+                console.log("Received Syntax in Frontend:", data.mermaidSyntax); // Debug log
                 setGeneratedSyntax(data.mermaidSyntax);
+            } else {
+                alert(data.message || "Failed to generate mind map.");
             }
         } catch (error) {
-            alert("Generation failed");
+            console.error("API Error:", error);
+            alert("Generation failed due to server error.");
         }
         setLoading(false);
     };
@@ -45,10 +53,12 @@ const MindMapGenerator = ({ courseId }) => {
                     className="flex-1 p-2 border rounded"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
                 <button 
                     onClick={handleGenerate} 
-                    className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+                    disabled={loading}
+                    className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                     {loading ? "Thinking..." : "Generate Map"}
                 </button>
@@ -57,7 +67,10 @@ const MindMapGenerator = ({ courseId }) => {
             {/* The Safe Viewer */}
             {generatedSyntax && (
                 <div className="mt-4">
-                    <MermaidViewer chartSyntax={generatedSyntax} />
+                    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                        {/* We use a key to force React to completely unmount and remount the viewer on new syntax */}
+                        <MermaidViewer key={generatedSyntax} chartSyntax={generatedSyntax} />
+                    </div>
                     
                     <button 
                         onClick={handleSave} 

@@ -4,24 +4,23 @@ import MindMap from "../models/MindMap.js";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 1. Ask Gemini to generate the Mermaid.js syntax
-// 1. Ask Gemini to generate the Mermaid.js syntax
 export const generateMindMap = async (req, res) => {
     try {
         const { topic } = req.body; 
 
         if (!topic) return res.json({ success: false, message: "Topic is required" });
 
-        // USE THE HIGHLY STABLE 1.5 FLASH MODEL
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `You are an expert educational structuralist. Create a comprehensive mind map for the topic: "${topic}".
 
         CRITICAL RULES:
         1. You MUST output ONLY valid Mermaid.js 'mindmap' syntax.
-        2. Do not use markdown wrappers (like \`\`\`mermaid).
-        3. Do not include any conversational text or explanations.
-        4. Use the strict indentation format required by Mermaid.js.
-        5. Keep node text concise (1-4 words). Use parentheses () for standard nodes if needed.
+        2. START your response immediately with the word 'mindmap'. Do NOT use directions like TD or LR.
+        3. Do not use markdown code blocks (like \`\`\`mermaid) anywhere.
+        4. Do not include any conversational text, introductions, or explanations.
+        5. Use the strict indentation format required by Mermaid.js.
+        6. Keep node text concise (1-4 words). Use parentheses () for standard nodes if needed.
 
         Example Format:
         mindmap
@@ -33,7 +32,7 @@ export const generateMindMap = async (req, res) => {
               Detail C
         `;
 
-        // --- NEW: STRICT 15-SECOND TIMEOUT TO PREVENT VERCEL 504 HANGS ---
+        // 15-second timeout to prevent Vercel 504 Hangs
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error("AI is busy right now. Please try again in a moment.")), 15000)
         );
@@ -46,14 +45,23 @@ export const generateMindMap = async (req, res) => {
 
         let aiResponse = result.response.text();
 
-        // Strip markdown if the AI accidentally adds it
-        const cleanSyntax = aiResponse.replace(/```mermaid/g, "").replace(/```/g, "").trim();
+        // Robust cleanup: Strip any accidental markdown blocks that Gemini might still output
+        let cleanSyntax = aiResponse
+            .replace(/```mermaid/gi, "")
+            .replace(/```/g, "")
+            .trim();
+        
+        // Failsafe: Ensure it explicitly starts with 'mindmap'
+        if (!cleanSyntax.toLowerCase().startsWith("mindmap")) {
+             cleanSyntax = `mindmap\n${cleanSyntax}`;
+        }
+
+        console.log("Cleaned Syntax sent to frontend:\n", cleanSyntax); // Backend Debug
 
         res.json({ success: true, mermaidSyntax: cleanSyntax });
 
     } catch (error) {
         console.error("MindMap Gen Error:", error);
-        // This will now catch the 15-second timeout OR actual API errors
         res.json({ success: false, message: error.message });
     }
 };
