@@ -9,7 +9,7 @@ export const generateMindMap = async (req, res) => {
         const { topic } = req.body; 
         if (!topic) return res.json({ success: false, message: "Topic is required" });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = `You are an expert structuralist for Edunova. Create a comprehensive mind map for the topic: "${topic}".
         CRITICAL RULES:
