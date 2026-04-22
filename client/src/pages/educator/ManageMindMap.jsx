@@ -10,6 +10,10 @@ const ManageMindMap = () => {
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
     
+    // UI State
+    const [activeTab, setActiveTab] = useState('ai'); 
+    
+    // Data State
     const [topic, setTopic] = useState("");
     const [generatedSyntax, setGeneratedSyntax] = useState("");
     const [loading, setLoading] = useState(false);
@@ -20,18 +24,15 @@ const ManageMindMap = () => {
             const { data } = await axios.get(`${backendUrl}/api/mindmap/course/${courseId}`);
             if (data.success) setSavedMaps(data.mindMaps);
         } catch (error) {
-            console.error("Failed to fetch mind maps:", error);
+            console.error("Failed to fetch diagrams");
         }
     };
 
-    useEffect(() => {
-        fetchMindMaps();
-    }, [courseId]);
+    useEffect(() => { fetchMindMaps(); }, [courseId]);
 
     const handleGenerate = async () => {
         if (!topic.trim()) return toast.error("Please enter a topic");
         setLoading(true);
-        setGeneratedSyntax(""); 
 
         try {
             const token = await getToken();
@@ -42,7 +43,8 @@ const ManageMindMap = () => {
 
             if (data.success) {
                 setGeneratedSyntax(data.mermaidSyntax);
-                toast.success("AI Draft Generated! You can now edit it.");
+                toast.success("AI Draft Generated!");
+                setActiveTab('compiler'); 
             } else {
                 toast.error(data.message || "Failed to generate");
             }
@@ -53,120 +55,188 @@ const ManageMindMap = () => {
     };
 
     const handleSave = async () => {
+        if (!generatedSyntax.trim()) return toast.error("No code to save!");
+        
         try {
             const token = await getToken();
             const { data } = await axios.post(`${backendUrl}/api/mindmap/save`, {
                 courseId,
-                title: `${topic} Diagram`,
+                title: topic ? `${topic} Diagram` : "Custom Course Diagram",
                 mermaidSyntax: generatedSyntax
             }, { headers: { Authorization: `Bearer ${token}` } });
             
             if (data.success) {
-                toast.success("Saved to Course successfully!");
+                toast.success("Published successfully!");
                 setGeneratedSyntax(""); 
                 setTopic(""); 
                 fetchMindMaps(); 
+                setActiveTab('saved'); 
             } else {
                  toast.error(data.message);
             }
         } catch (error) {
-            toast.error("Failed to save the mind map.");
+            toast.error("Failed to save.");
         }
     };
 
-    // Live Editor Handler
-    const handleSyntaxChange = (e) => {
-        setGeneratedSyntax(e.target.value);
+    // NEW: Delete Handler
+    const handleDelete = async (mapId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this diagram? Students will instantly lose access to it.");
+        if (!confirmDelete) return;
+
+        try {
+            const token = await getToken();
+            const { data } = await axios.delete(`${backendUrl}/api/mindmap/delete/${mapId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success("Diagram deleted successfully.");
+                fetchMindMaps(); // Refresh the UI automatically
+            } else {
+                toast.error(data.message || "Failed to delete.");
+            }
+        } catch (error) {
+            toast.error("An error occurred while deleting.");
+        }
     };
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
-            <div className="flex items-center gap-4 mb-6">
-                <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-800 font-medium">
-                    ← Back
-                </button>
-                <h1 className="text-3xl font-bold text-gray-800">Dynamic Course Diagrams</h1>
-            </div>
-            
-            {/* 1. Generate Section */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <input 
-                        type="text" 
-                        placeholder="Enter topic (e.g., Operating System Lifecycle)"
-                        className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition"
-                        value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                    />
+            <div className="max-w-7xl mx-auto">
+                <div className="flex items-center gap-4 mb-6">
+                    <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-800 font-medium transition-colors">
+                        ← Back to Course
+                    </button>
+                    <h1 className="text-3xl font-bold text-gray-800">Manage Course Diagrams</h1>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex border-b border-gray-200 mb-8 overflow-x-auto bg-white rounded-t-xl shadow-sm px-2 pt-2">
                     <button 
-                        onClick={handleGenerate} 
-                        disabled={loading}
-                        className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium min-w-[180px] transition"
+                        onClick={() => setActiveTab('ai')}
+                        className={`px-8 py-4 font-bold text-sm tracking-wide transition-colors whitespace-nowrap rounded-t-lg ${activeTab === 'ai' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                     >
-                        {loading ? "Thinking..." : "Generate AI Draft"}
+                        ✨ AI Generator
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('compiler')}
+                        className={`px-8 py-4 font-bold text-sm tracking-wide transition-colors whitespace-nowrap rounded-t-lg ${activeTab === 'compiler' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        💻 Raw Compiler
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('saved')}
+                        className={`px-8 py-4 font-bold text-sm tracking-wide transition-colors whitespace-nowrap rounded-t-lg flex items-center gap-2 ${activeTab === 'saved' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        📁 Saved Collection
+                        <span className="bg-gray-200 text-gray-700 py-0.5 px-2 rounded-full text-xs">{savedMaps.length}</span>
                     </button>
                 </div>
-            </div>
 
-            {/* 2. The Live "Human-in-the-Loop" Workspace */}
-            {generatedSyntax && (
-                <div className="mb-8">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800">Live Editor Workspace</h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        
-                        {/* LEFT COLUMN: The Code Editor */}
-                        <div className="flex flex-col">
-                            <label className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">
-                                1. Tweak the Code
-                            </label>
-                            <textarea 
-                                value={generatedSyntax}
-                                onChange={handleSyntaxChange}
-                                spellCheck="false"
-                                className="w-full h-[400px] p-4 bg-gray-900 text-green-400 font-mono text-sm rounded-xl border border-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none shadow-inner leading-relaxed"
-                                placeholder="Mermaid syntax will appear here..."
+                {/* TAB 1: AI Generator */}
+                {activeTab === 'ai' && (
+                    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-3xl animate-fadeIn">
+                        <h2 className="text-xl font-bold mb-2 text-gray-800">Generate with Edunova AI</h2>
+                        <p className="text-gray-500 mb-6 text-sm">Enter a core concept and our AI will structuralize it into a professional diagram for your students.</p>
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <input 
+                                type="text" 
+                                placeholder="Enter topic (e.g., The React Virtual DOM)"
+                                className="flex-1 p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                             />
+                            <button 
+                                onClick={handleGenerate} 
+                                disabled={loading}
+                                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium min-w-[180px] transition-all"
+                            >
+                                {loading ? "Thinking..." : "Generate Draft"}
+                            </button>
                         </div>
-
-                        {/* RIGHT COLUMN: The Visual Preview */}
-                        <div className="flex flex-col">
-                            <div className="flex justify-between items-end mb-2">
-                                <label className="text-sm font-bold text-gray-500 uppercase tracking-wide">
-                                    2. Live Preview
-                                </label>
-                                <button 
-                                    onClick={handleSave} 
-                                    className="bg-green-600 text-white px-6 py-2 text-sm rounded-lg hover:bg-green-700 font-bold shadow transition"
-                                >
-                                    Publish to Students
-                                </button>
-                            </div>
-                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-[400px] flex justify-center items-center overflow-auto p-4 relative">
-                                {/* We removed the hard 'key' prop here so typing is smooth and doesn't violently remount the component */}
-                                <MermaidViewer chartSyntax={generatedSyntax} />
-                            </div>
-                        </div>
-
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* 3. Saved Maps Section */}
-            <div>
-                <h2 className="text-xl font-bold mb-4 text-gray-800">Published Diagrams</h2>
-                {savedMaps.length === 0 ? (
-                    <p className="text-gray-500 bg-white p-6 rounded-xl border border-gray-200 text-center">No diagrams published for this course yet.</p>
-                ) : (
-                    <div className="grid gap-6">
-                        {savedMaps.map((map) => (
-                            <div key={map._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                                <h3 className="text-lg font-bold mb-4 text-blue-600 border-b pb-2">{map.title}</h3>
-                                <div className="bg-gray-50 rounded-lg border border-gray-100 overflow-x-auto">
-                                    <MermaidViewer chartSyntax={map.mermaidSyntax} />
-                                </div>
+                {/* TAB 2: Raw Compiler (Live Editor) */}
+                {activeTab === 'compiler' && (
+                    <div className="animate-fadeIn">
+                        <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">Mermaid Compiler Workspace</h2>
+                                <p className="text-xs text-gray-500">Edit the raw syntax on the left to update the preview on the right.</p>
                             </div>
-                        ))}
+                            <button 
+                                onClick={handleSave} 
+                                disabled={!generatedSyntax.trim()}
+                                className="bg-green-600 text-white px-8 py-2 rounded-lg hover:bg-green-700 font-bold shadow transition-all disabled:opacity-50"
+                            >
+                                Publish to Students
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Editor */}
+                            <div className="flex flex-col">
+                                <textarea 
+                                    value={generatedSyntax}
+                                    onChange={(e) => setGeneratedSyntax(e.target.value)}
+                                    spellCheck="false"
+                                    className="w-full h-[550px] p-5 bg-[#0d1117] text-[#58a6ff] font-mono text-sm rounded-xl border border-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 resize-none shadow-inner leading-relaxed"
+                                    placeholder="Paste or type raw Mermaid.js syntax here..."
+                                />
+                            </div>
+                            {/* Preview */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-[550px] flex justify-center items-center overflow-auto p-4">
+                                {generatedSyntax.trim() ? (
+                                    <MermaidViewer chartSyntax={generatedSyntax} />
+                                ) : (
+                                    <div className="text-center text-gray-400">
+                                        <div className="text-4xl mb-2">👁️</div>
+                                        <p className="font-medium">Live preview will appear here</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 3: Saved Diagrams (With Delete Feature) */}
+                {activeTab === 'saved' && (
+                    <div className="animate-fadeIn">
+                        {savedMaps.length === 0 ? (
+                            <div className="bg-white p-16 rounded-xl border border-gray-200 text-center shadow-sm">
+                                <div className="text-5xl mb-4">📭</div>
+                                <h2 className="text-xl font-bold text-gray-700 mb-2">Your Collection is Empty</h2>
+                                <p className="text-gray-500">You haven't published any diagrams for this course yet.</p>
+                                <button onClick={() => setActiveTab('ai')} className="mt-6 bg-blue-50 text-blue-600 px-6 py-2 rounded-lg hover:bg-blue-100 font-medium transition-colors">Create your first one</button>
+                            </div>
+                        ) : (
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+                                {savedMaps.map((map) => (
+                                    <div key={map._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                                        <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
+                                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                                <span className="text-blue-500 text-lg">❖</span> {map.title}
+                                            </h3>
+                                            
+                                            {/* Delete Button */}
+                                            <button 
+                                                onClick={() => handleDelete(map._id)}
+                                                className="flex items-center gap-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                                title="Delete this diagram"
+                                            >
+                                                <span>🗑️</span> Delete
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 overflow-x-auto p-4 min-h-[200px] flex justify-center items-center">
+                                            <MermaidViewer chartSyntax={map.mermaidSyntax} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

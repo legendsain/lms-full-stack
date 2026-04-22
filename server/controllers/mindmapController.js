@@ -4,6 +4,7 @@ import MindMap from "../models/MindMap.js";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 1. Generate the Diagram Syntax using Gemini
+
 export const generateMindMap = async (req, res) => {
     try {
         const { topic } = req.body; 
@@ -11,8 +12,13 @@ export const generateMindMap = async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-        const prompt = `You are an expert technical structuralist for the Edunova learning platform. 
-        Create a highly accurate Mermaid.js diagram for the topic: "${topic}".
+        const prompt = `You are a Senior Technical Architect and Educational Expert building diagrams for the Edunova learning platform. 
+        Your task is to create a highly accurate, professional Mermaid.js diagram for the topic: "${topic}".
+
+        PEDAGOGICAL & PROFESSIONAL STANDARDS (ZERO HALLUCINATION):
+        1. Accuracy First: The structural logic must be 100% technically accurate. Do not invent or hallucinate concepts.
+        2. Scope & Depth: Do not over-explain or under-explain. Include only the most critical, high-level components and their direct sub-components. Keep it highly digestible for students.
+        3. Professional Formatting: Node boxes must be concisely named. Edges (arrows) must be properly labeled ONLY if the transition requires explanation.
 
         CRITICAL MERMAID SYNTAX RULES:
         1. Choose the MOST pedagogically appropriate diagram type: 'stateDiagram-v2', 'graph TD', or 'mindmap'.
@@ -24,32 +30,8 @@ export const generateMindMap = async (req, res) => {
            - For mindmaps ('mindmap'): Use parentheses. Example: (Detail A)
         5. Do not include any conversational text. 
         6. Use strict indentation with ONLY standard space characters (no \\u00A0).
-
-        Example Flowchart Format:
-        graph TD
-          A[Start Process] --> B{Is Valid?}
-          B -- Yes --> C[Execute Task]
-          B -- No --> D[Reject Task]
-
-        Example State Diagram Format:
-        stateDiagram-v2
-          state "New Process" as s1
-          state "Ready State" as s2
-          state "Running State" as s3
-          [*] --> s1
-          s1 --> s2 : Admitted
-          s2 --> s3 : Dispatch
-          s3 --> s2 : Interrupt
-
-        Example Mindmap Format:
-        mindmap
-          root((Topic Name))
-            Subtopic 1
-              (Detail A)
-              (Detail B)
         `;
 
-        // 15-second timeout to prevent server hangs
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 15000)
         );
@@ -57,7 +39,6 @@ export const generateMindMap = async (req, res) => {
         const result = await Promise.race([ model.generateContent(prompt), timeoutPromise ]);
         let aiResponse = result.response.text();
 
-        // Clean up markdown AND replace all invisible non-breaking spaces (\u00A0) with standard spaces
         let cleanSyntax = aiResponse
             .replace(/```mermaid/gi, "")
             .replace(/```/g, "")
@@ -93,6 +74,19 @@ export const getCourseMindMaps = async (req, res) => {
         const { courseId } = req.params;
         const mindMaps = await MindMap.find({ courseId }).sort({ createdAt: -1 });
         res.json({ success: true, mindMaps });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+// 4. Delete a Mind Map
+export const deleteMindMap = async (req, res) => {
+    try {
+        const { mapId } = req.params;
+        
+        // Find the map and delete it
+        await MindMap.findByIdAndDelete(mapId);
+        
+        res.json({ success: true, message: "Diagram deleted successfully!" });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
