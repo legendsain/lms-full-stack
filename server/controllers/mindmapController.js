@@ -17,7 +17,7 @@ export const generateMindMap = async (req, res) => {
         2. START your response immediately with the word 'mindmap'. Do NOT use directions like TD or LR.
         3. Do not use markdown code blocks (like \`\`\`mermaid) anywhere.
         4. Do not include any conversational text.
-        5. Use strict 2-space indentation.
+        5. Use strict 2-space indentation using ONLY standard space characters.
         6. Keep node text concise. Use parentheses () for nodes with spaces.
 
         Example Format:
@@ -38,8 +38,14 @@ export const generateMindMap = async (req, res) => {
         const result = await Promise.race([ model.generateContent(prompt), timeoutPromise ]);
         let aiResponse = result.response.text();
 
-        // Clean up any accidental markdown the AI includes
-        let cleanSyntax = aiResponse.replace(/```mermaid/gi, "").replace(/```/g, "").trim();
+        // --- CRITICAL FIX APPLIED HERE ---
+        // Clean up markdown AND replace all invisible non-breaking spaces (\u00A0) with standard spaces
+        let cleanSyntax = aiResponse
+            .replace(/```mermaid/gi, "")
+            .replace(/```/g, "")
+            .replace(/\u00A0/g, " ") 
+            .trim();
+            
         if (!cleanSyntax.toLowerCase().startsWith("mindmap")) {
              cleanSyntax = `mindmap\n${cleanSyntax}`;
         }
