@@ -17,8 +17,13 @@ const Loading = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-16 sm:w-20 aspect-square border-4 border-gray-300 border-t-4 border-t-blue-400 rounded-full animate-spin"></div>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white">
+      {/* Spinner */}
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full border-[3px] border-surface-200 border-t-brand-600 animate-spin"></div>
+        <div className="absolute inset-0 w-12 h-12 rounded-full border-[3px] border-transparent border-b-brand-300 animate-spin" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+      </div>
+      <p className="text-sm text-surface-400 font-medium animate-pulse-soft">Loading...</p>
     </div>
   );
 };

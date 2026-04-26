@@ -1,101 +1,169 @@
 import User from '../models/User.js';
 import QuizResult from '../models/QuizResult.js';
 import Course from '../models/Course.js';
+import { Purchase } from '../models/Purchase.js';
 
-// Helper: Calculate Risk Score (Hardened against missing data)
-const calculateRisk = (student, quizResults, totalCourseQuizzes) => {
-    
-    // 1. Recency Risk (40%)
-    // FIX: Use Optional Chaining (?.) so it doesn't crash if gamification is missing.
-    // Fallback to createdAt, and if that's missing, fallback to today.
-    const activityDate = student?.gamification?.lastActivity || student?.createdAt || new Date();
-    const lastLogin = new Date(activityDate);
-    const today = new Date();
-    
-    const daysInactive = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
-    
-    // Cap inactive risk at 100 (if inactive > 30 days, max risk)
-    let recencyRisk = Math.min((daysInactive / 30) * 100, 100);
+// ====================================================================
+// RISK CALCULATION ENGINE
+// ====================================================================
+// A student is "At Risk" if ANY of these conditions are true:
+//   1. lastLoginDate is null AND daysSincePurchase > 3 (never came back)
+//   2. daysSinceLastLogin > 7 (ghost student)
+//   3. averageQuizScore < 50% (struggling academically)
+// ====================================================================
 
-    // 2. Performance Risk (30%)
-    let avgScore = 0;
-    if (quizResults && quizResults.length > 0) {
-        const totalScore = quizResults.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
-        avgScore = totalScore / quizResults.length;
-    }
-    const performanceRisk = 100 - avgScore;
+const calculateRiskScore = (student, quizResults, purchaseDate) => {
+    const now = new Date();
+    const factors = {};
+    let riskReasons = [];
 
-    // 3. Engagement Risk (30%)
-    const totalQuizzes = totalCourseQuizzes || 1; 
-    const completionRate = Math.min(((quizResults?.length || 0) / totalQuizzes) * 100, 100);
-    const engagementRisk = 100 - completionRate;
+    // ---- Factor 1: Login Recency ----
+    const lastLogin = student.lastLoginDate
+        ? new Date(student.lastLoginDate)
+        : null;
 
-    // Weighted Formula
-    const totalRisk = (recencyRisk * 0.4) + (performanceRisk * 0.3) + (engagementRisk * 0.3);
-    
-    return {
-        score: Math.round(totalRisk),
-        factors: {
-            daysInactive: daysInactive < 0 ? 0 : daysInactive, // Prevent negative days
-            avgScore: Math.round(avgScore),
-            completionRate: Math.round(completionRate)
+    const purchaseDt = purchaseDate ? new Date(purchaseDate) : new Date(student.createdAt);
+    const daysSincePurchase = Math.floor((now - purchaseDt) / (1000 * 60 * 60 * 24));
+
+    let daysInactive = 0;
+    let loginRisk = 0;
+
+    if (!lastLogin) {
+        // NEVER LOGGED IN after purchasing
+        daysInactive = daysSincePurchase;
+        if (daysSincePurchase > 3) {
+            loginRisk = 95; // Very high risk
+            riskReasons.push("Never logged in since purchase");
+        } else {
+            loginRisk = 30; // Still new, not yet alarming
         }
+    } else {
+        daysInactive = Math.floor((now - lastLogin) / (1000 * 60 * 60 * 24));
+        if (daysInactive > 30) {
+            loginRisk = 100;
+            riskReasons.push("Inactive for 30+ days");
+        } else if (daysInactive > 14) {
+            loginRisk = 80;
+            riskReasons.push("Inactive for 14+ days");
+        } else if (daysInactive > 7) {
+            loginRisk = 60;
+            riskReasons.push("Inactive for 7+ days");
+        } else {
+            loginRisk = Math.min((daysInactive / 7) * 40, 40);
+        }
+    }
+    factors.daysInactive = Math.max(0, daysInactive);
+
+    // ---- Factor 2: Quiz Performance ----
+    let avgScore = 0;
+    let performanceRisk = 50; // Default if no quizzes taken
+
+    if (quizResults && quizResults.length > 0) {
+        const totalPercent = quizResults.reduce(
+            (sum, qr) => sum + (qr.score / qr.totalQuestions) * 100, 0
+        );
+        avgScore = Math.round(totalPercent / quizResults.length);
+        performanceRisk = 100 - avgScore;
+
+        if (avgScore < 50) {
+            riskReasons.push(`Low quiz average: ${avgScore}%`);
+        }
+    } else {
+        riskReasons.push("No quizzes attempted");
+    }
+    factors.avgScore = avgScore;
+
+    // ---- Factor 3: Engagement (quiz completion rate) ----
+    const quizzesAttempted = quizResults?.length || 0;
+    const expectedQuizzes = Math.max(1, 3); // Base expectation
+    const completionRate = Math.min((quizzesAttempted / expectedQuizzes) * 100, 100);
+    const engagementRisk = 100 - completionRate;
+    factors.completionRate = Math.round(completionRate);
+
+    // ---- Weighted Risk Score ----
+    const totalRisk = Math.round(
+        (loginRisk * 0.45) +       // Login recency is the strongest signal
+        (performanceRisk * 0.30) +  // Academic struggle
+        (engagementRisk * 0.25)     // Engagement
+    );
+
+    // Determine risk level label
+    let riskLevel = "low";
+    if (totalRisk >= 80) riskLevel = "critical";
+    else if (totalRisk >= 60) riskLevel = "high";
+    else if (totalRisk >= 40) riskLevel = "medium";
+
+    return {
+        score: Math.min(totalRisk, 100),
+        factors,
+        riskLevel,
+        riskReasons,
     };
 };
 
-// API: Get At-Risk Students
+// ====================================================================
+// API: GET AT-RISK STUDENTS
+// ====================================================================
 export const getAtRiskStudents = async (req, res) => {
     try {
         const educatorId = req.auth.userId;
 
-        // 1. Fetch all courses created by this educator
-        const courses = await Course.find({ educatorId });
-        
+        // 1. Fetch all courses by this educator
+        // FIX: Course model uses `educator` field, NOT `educatorId`
+        const courses = await Course.find({ educator: educatorId });
+
         if (!courses || courses.length === 0) {
-             return res.json({ success: true, atRiskData: [] });
+            return res.json({ success: true, atRiskData: [] });
         }
 
-        // Map ObjectIds to Strings for robust comparison
         const courseIds = courses.map(c => c._id.toString());
 
-        // 2. Fetch all students enrolled in these courses
-        // FIX: Removed strict `role: 'student'` check. If they are enrolled, track them.
-        const students = await User.find({ 
+        // 2. Fetch all students enrolled in educator's courses
+        const students = await User.find({
             enrolledCourses: { $in: courseIds }
+        });
+
+        // 3. Fetch earliest purchase dates for each student (for "never logged in" detection)
+        const purchases = await Purchase.find({
+            courseId: { $in: courseIds },
+            status: 'completed'
         });
 
         const atRiskData = [];
 
-        // 3. Analyze each student
+        // 4. Analyze each student
         for (const student of students) {
-            
-            const results = await QuizResult.find({ 
+            // Get quiz results for this student in educator's courses
+            const results = await QuizResult.find({
                 userId: student._id.toString(),
                 courseId: { $in: courseIds }
             });
 
-            // Calculate total quizzes roughly based on enrolled courses
-            const studentCourses = courses.filter(c => 
-                student.enrolledCourses.map(id => id.toString()).includes(c._id.toString())
+            // Find earliest purchase date for this student
+            const studentPurchases = purchases.filter(
+                p => p.userId === student._id.toString()
             );
-            
-            // Assuming 5 quizzes per course for baseline metric
-            let totalQuizzesAvailable = studentCourses.length * 5; 
-            
-            // Prevent dividing by zero
-            if (totalQuizzesAvailable === 0) totalQuizzesAvailable = 1;
+            const earliestPurchase = studentPurchases.length > 0
+                ? studentPurchases.reduce((earliest, p) =>
+                    new Date(p.createdAt) < new Date(earliest.createdAt) ? p : earliest
+                ).createdAt
+                : student.createdAt;
 
-            const riskAnalysis = calculateRisk(student, results, totalQuizzesAvailable);
+            const riskAnalysis = calculateRiskScore(student, results, earliestPurchase);
 
-            // Filter: Return students with Risk > 50%
-            if (riskAnalysis.score > 50) {
+            // Flag students with risk > 40% (catches more edge cases than 50%)
+            if (riskAnalysis.score > 40) {
                 atRiskData.push({
                     studentId: student._id,
                     name: student.name || "Unknown Student",
                     email: student.email || "No Email",
                     imageUrl: student.imageUrl || "https://via.placeholder.com/150",
                     riskScore: riskAnalysis.score,
-                    factors: riskAnalysis.factors
+                    riskLevel: riskAnalysis.riskLevel,
+                    riskReasons: riskAnalysis.riskReasons,
+                    factors: riskAnalysis.factors,
+                    lastLoginDate: student.lastLoginDate,
+                    memberSince: student.createdAt,
                 });
             }
         }
@@ -106,7 +174,7 @@ export const getAtRiskStudents = async (req, res) => {
         res.json({ success: true, atRiskData });
 
     } catch (error) {
-        console.error("Analytics Error:", error); // Logs to Vercel/Terminal so we can see what breaks
+        console.error("Analytics Error:", error);
         res.json({ success: false, message: error.message });
     }
 };

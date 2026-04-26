@@ -80,148 +80,191 @@ const CourseDetails = () => {
     }
   }, [userData, courseData])
 
+  const rating = courseData ? calculateRating(courseData) : 0;
+
   return courseData ? (
     <>
-      <div className="flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-20 pt-10 text-left">
-        <div className="absolute top-0 left-0 w-full h-section-height -z-1 bg-gradient-to-b from-cyan-100/70"></div>
+      <div className="relative animate-fade-in">
+        {/* Background gradient */}
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-brand-50/60 to-transparent -z-10"></div>
 
-        {/* --- LEFT COLUMN (Main Content) --- */}
-        <div className="max-w-xl z-10 text-gray-500">
-          <h1 className="md:text-course-deatails-heading-large text-course-deatails-heading-small font-semibold text-gray-800">
-            {courseData.courseTitle}
-          </h1>
-          <p className="pt-4 md:text-base text-sm" dangerouslySetInnerHTML={{ __html: courseData.courseDescription.slice(0, 200) }}>
-          </p>
-
-          <div className='flex items-center space-x-2 pt-3 pb-1 text-sm'>
-            <p>{calculateRating(courseData)}</p>
-            <div className='flex'>
-              {[...Array(5)].map((_, i) => (<img key={i} src={i < Math.floor(calculateRating(courseData)) ? assets.star : assets.star_blank} alt=''
-                className='w-3.5 h-3.5' />
-              ))}
+        <div className="section-container flex md:flex-row flex-col-reverse gap-10 items-start pt-10 md:pt-16 text-left">
+          
+          {/* --- LEFT COLUMN --- */}
+          <div className="max-w-xl z-10 space-y-6 flex-1">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-sm">
+              <span onClick={() => navigate('/')} className='text-brand-600 cursor-pointer hover:underline font-medium'>Home</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-surface-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+              <span onClick={() => navigate('/course-list')} className='text-brand-600 cursor-pointer hover:underline font-medium'>Courses</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-surface-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+              <span className='text-surface-500 truncate max-w-[200px]'>{courseData.courseTitle}</span>
             </div>
-            <p className='text-blue-600'>({courseData.courseRatings.length} {courseData.courseRatings.length > 1 ? 'ratings' : 'rating'})</p>
 
-            <p>{courseData.enrolledStudents.length} {courseData.enrolledStudents.length > 1 ? 'students' : 'student'}</p>
-          </div>
+            <h1 className="text-2xl md:text-4xl font-extrabold text-surface-900 tracking-tight leading-tight">
+              {courseData.courseTitle}
+            </h1>
+            
+            <div className="text-surface-600 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: courseData.courseDescription.slice(0, 200) }}></div>
 
-          <p className='text-sm'>Course by <span className='text-blue-600 underline'>{courseData.educator.name}</span></p>
-
-          <div className="pt-8 text-gray-800">
-            <h2 className="text-xl font-semibold">Course Structure</h2>
-            <div className="pt-5">
-              {courseData.courseContent.map((chapter, index) => (
-                <div key={index} className="border border-gray-300 bg-white mb-2 rounded">
-                  <div
-                    className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-                    onClick={() => toggleSection(index)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <img src={assets.down_arrow_icon} alt="arrow icon" className={`transform transition-transform ${openSections[index] ? "rotate-180" : ""}`} />
-                      <p className="font-medium md:text-base text-sm">{chapter.chapterTitle}</p>
-                    </div>
-                    <p className="text-sm md:text-default">{chapter.chapterContent.length} lectures - {calculateChapterTime(chapter)}</p>
-                  </div>
-
-                  <div className={`overflow-hidden transition-all duration-300 ${openSections[index] ? "max-h-96" : "max-h-0"}`} >
-                    <ul className="list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300">
-                      {chapter.chapterContent.map((lecture, i) => (
-                        <li key={i} className="flex items-start gap-2 py-1">
-                          <img src={assets.play_icon} alt="bullet icon" className="w-4 h-4 mt-1" />
-                          <div className="flex items-center justify-between w-full text-gray-800 text-xs md:text-default">
-                            <p>{lecture.lectureTitle}</p>
-                            <div className='flex gap-2'>
-                              {lecture.isPreviewFree && <p onClick={() => setPlayerData({
-                                videoId: lecture.lectureUrl.split('/').pop()
-                              })} className='text-blue-500 cursor-pointer'>Preview</p>}
-                              <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'] })}</p>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+            {/* Rating & Meta */}
+            <div className='flex flex-wrap items-center gap-3 text-sm'>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-amber-600">{rating}</span>
+                <div className='flex gap-0.5'>
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 ${i < Math.floor(rating) ? 'text-amber-400' : 'text-surface-200'}`} viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
+                    </svg>
+                  ))}
                 </div>
-              ))}
+                <span className='text-brand-600 font-medium'>({courseData.courseRatings.length} {courseData.courseRatings.length > 1 ? 'ratings' : 'rating'})</span>
+              </div>
+              <span className="w-1 h-1 bg-surface-300 rounded-full"></span>
+              <span className="text-surface-500">{courseData.enrolledStudents.length} {courseData.enrolledStudents.length > 1 ? 'students' : 'student'}</span>
             </div>
-          </div>
 
-          {/* --- QUIZ SECTION (Main Column) --- */}
-          {isAlreadyEnrolled && (
-            <div className="mt-10 p-6 bg-purple-50 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-xl">📝</div>
-                    <div>
-                        <h3 className="text-lg font-bold text-purple-900">Ready to test your knowledge?</h3>
-                        <p className="text-purple-600 text-sm">Complete the quiz to evaluate your understanding.</p>
+            <p className='text-sm text-surface-500'>Course by <span className='text-brand-600 font-semibold'>{courseData.educator.name}</span></p>
+
+            {/* Course Structure */}
+            <div className="pt-4">
+              <h2 className="text-xl font-bold text-surface-900 mb-4">Course Structure</h2>
+              <div className="space-y-2">
+                {courseData.courseContent.map((chapter, index) => (
+                  <div key={index} className="premium-card overflow-hidden">
+                    <div
+                      className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none hover:bg-surface-50 transition-colors"
+                      onClick={() => toggleSection(index)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 text-surface-400 transition-transform duration-300 ${openSections[index] ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                        </svg>
+                        <p className="font-medium text-surface-800 text-sm">{chapter.chapterTitle}</p>
+                      </div>
+                      <p className="text-xs text-surface-400">{chapter.chapterContent.length} lectures • {calculateChapterTime(chapter)}</p>
                     </div>
+
+                    <div className={`overflow-hidden transition-all duration-300 ${openSections[index] ? "max-h-96" : "max-h-0"}`}>
+                      <ul className="px-4 py-2 border-t border-surface-100 space-y-1">
+                        {chapter.chapterContent.map((lecture, i) => (
+                          <li key={i} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-surface-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-surface-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
+                              </svg>
+                              <span className="text-sm text-surface-700">{lecture.lectureTitle}</span>
+                            </div>
+                            <div className='flex items-center gap-3 text-xs'>
+                              {lecture.isPreviewFree && (
+                                <button onClick={() => setPlayerData({
+                                  videoId: lecture.lectureUrl.split('/').pop()
+                                })} className='text-brand-600 font-semibold hover:underline'>
+                                  Preview
+                                </button>
+                              )}
+                              <span className="text-surface-400">{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'] })}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quiz Section */}
+            {isAlreadyEnrolled && (
+              <div className="premium-card p-6 bg-gradient-to-r from-violet-50 to-brand-50 border-violet-200/60 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center text-xl">📝</div>
+                  <div>
+                    <h3 className="text-base font-bold text-surface-900">Ready to test your knowledge?</h3>
+                    <p className="text-violet-600 text-sm">Complete the quiz to evaluate your understanding.</p>
+                  </div>
                 </div>
                 <button 
-                    // --- UPDATED: Navigate to Quiz List Page ---
-                    onClick={() => navigate('/course/quizzes/' + courseData._id)} 
-                    className="px-8 py-3 rounded-full bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all shadow-md whitespace-nowrap"
+                  onClick={() => navigate('/course/quizzes/' + courseData._id)} 
+                  className="btn-accent !rounded-full whitespace-nowrap"
                 >
-                    Take Quiz
+                  Take Quiz
                 </button>
-            </div>
-          )}
+              </div>
+            )}
 
-          <div className="py-20 text-sm md:text-default">
-            <h3 className="text-xl font-semibold text-gray-800">Course Description</h3>
-            <p className="rich-text pt-3" dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}>
-            </p>
+            {/* Description */}
+            <div className="py-12">
+              <h3 className="text-xl font-bold text-surface-900 mb-4">Course Description</h3>
+              <div className="rich-text" dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}></div>
+            </div>
           </div>
-        </div>
 
-        {/* --- RIGHT COLUMN (Sidebar Card) --- */}
-        <div className="max-w-course-card z-10 shadow-custom-card rounded-t md:rounded-none overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
-          {
-            playerData
-              ? <YouTube videoId={playerData.videoId} opts={{ playerVars: { autoplay: 1 } }} iframeClassName='w-full aspect-video' />
-              : <img src={courseData.courseThumbnail} alt="" />
-          }
-          <div className="p-5">
-            <div className="flex items-center gap-2">
-              <img className="w-3.5" src={assets.time_left_clock_icon} alt="time left clock icon" />
-              <p className="text-red-500">
-                <span className="font-medium">5 days</span> left at this price!
-              </p>
-            </div>
-            <div className="flex gap-3 items-center pt-2">
-              <p className="text-gray-800 md:text-4xl text-2xl font-semibold">{currency}{(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)}</p>
-              <p className="md:text-lg text-gray-500 line-through">{currency}{courseData.coursePrice}</p>
-              <p className="md:text-lg text-gray-500">{courseData.discount}% off</p>
-            </div>
-            <div className="flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500">
-              <div className="flex items-center gap-1">
-                <img src={assets.star} alt="star icon" />
-                <p>{calculateRating(courseData)}</p>
-              </div>
-              <div className="h-4 w-px bg-gray-500/40"></div>
-              <div className="flex items-center gap-1">
-                <img src={assets.time_clock_icon} alt="clock icon" />
-                <p>{calculateCourseDuration(courseData)}</p>
-              </div>
-              <div className="h-4 w-px bg-gray-500/40"></div>
-              <div className="flex items-center gap-1">
-                <img src={assets.lesson_icon} alt="clock icon" />
-                <p>{calculateNoOfLectures(courseData)} lessons</p>
-              </div>
-            </div>
-            
-            <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
-              {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
-            </button>
+          {/* --- RIGHT COLUMN (Sidebar Card) --- */}
+          <div className="w-full md:w-[420px] md:sticky md:top-24 z-10 flex-shrink-0">
+            <div className="premium-card overflow-hidden">
+              {playerData
+                ? <YouTube videoId={playerData.videoId} opts={{ playerVars: { autoplay: 1 } }} iframeClassName='w-full aspect-video' />
+                : <img src={courseData.courseThumbnail} alt={courseData.courseTitle} className="w-full aspect-video object-cover" />
+              }
+              <div className="p-5 space-y-4">
+                {/* Urgency */}
+                <div className="flex items-center gap-2 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <p className="text-red-500"><span className="font-semibold">5 days</span> left at this price!</p>
+                </div>
 
-            <div className="pt-6">
-              <p className="md:text-xl text-lg font-medium text-gray-800">What's in the course?</p>
-              <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500">
-                <li>Lifetime access with free updates.</li>
-                <li>Step-by-step, hands-on project guidance.</li>
-                <li>Downloadable resources and source code.</li>
-                <li>Quizzes to test your knowledge.</li>
-                <li>Certificate of completion.</li>
-              </ul>
+                {/* Price */}
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl md:text-4xl font-extrabold text-surface-900">{currency}{(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)}</span>
+                  <span className="text-lg text-surface-400 line-through">{currency}{courseData.coursePrice}</span>
+                  <span className="badge-success">{courseData.discount}% off</span>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 text-sm text-surface-500">
+                  <div className="flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
+                    </svg>
+                    <span>{rating}</span>
+                  </div>
+                  <div className="h-4 w-px bg-surface-200"></div>
+                  <span>{calculateCourseDuration(courseData)}</span>
+                  <div className="h-4 w-px bg-surface-200"></div>
+                  <span>{calculateNoOfLectures(courseData)} lessons</span>
+                </div>
+                
+                <button onClick={enrollCourse} className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                  isAlreadyEnrolled 
+                    ? 'bg-emerald-100 text-emerald-700 cursor-default' 
+                    : 'btn-primary !w-full'
+                }`}>
+                  {isAlreadyEnrolled ? "✓ Already Enrolled" : "Enroll Now"}
+                </button>
+
+                {/* Features */}
+                <div className="pt-4 border-t border-surface-100">
+                  <p className="font-semibold text-surface-900 mb-3">What's included</p>
+                  <ul className="space-y-2.5 text-sm text-surface-600">
+                    {['Lifetime access with free updates', 'Hands-on project guidance', 'Downloadable resources & source code', 'Quizzes to test your knowledge', 'Certificate of completion'].map((item, i) => (
+                      <li key={i} className="flex items-center gap-2.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-brand-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>

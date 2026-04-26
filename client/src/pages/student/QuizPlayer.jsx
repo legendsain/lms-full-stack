@@ -16,7 +16,7 @@ const QuizPlayer = () => {
   
   const [attemptData, setAttemptData] = useState(null); 
   
-  // --- NEW STATE: PREVENT DOUBLE CLICKS ---
+  // --- PREVENT DOUBLE CLICKS ---
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatTime = (seconds) => {
@@ -75,12 +75,10 @@ const QuizPlayer = () => {
 
   const handleSubmit = async (isAutoSubmit = false) => {
     try {
-        // --- 1. Prevent Double Submission ---
         if (isSubmitting) return; 
 
         if (!isAutoSubmit && !window.confirm("Are you sure you want to submit?")) return;
         
-        // --- 2. Lock the Button ---
         setIsSubmitting(true);
 
         const token = await getToken();
@@ -97,7 +95,6 @@ const QuizPlayer = () => {
             setAttemptData({ score: data.score, totalQuestions: data.totalQuestions });
         } else {
             toast.error(data.message);
-            // Unlock if error, so they can try again
             setIsSubmitting(false); 
         }
 
@@ -109,25 +106,34 @@ const QuizPlayer = () => {
 
   useEffect(() => { fetchQuiz() }, [quizId])
 
-  if (!quizData) return <div className="p-10 text-center">Loading Quiz...</div>
+  if (!quizData) return (
+    <div className="min-h-screen flex items-center justify-center bg-surface-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-[3px] border-surface-200 border-t-brand-600 animate-spin"></div>
+        <p className="text-sm text-surface-400 font-medium">Loading Quiz...</p>
+      </div>
+    </div>
+  );
 
   // --- VIEW 1: ALREADY ATTEMPTED SCREEN ---
   if (attemptData) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center border border-gray-200">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="min-h-screen bg-surface-50 flex items-center justify-center px-4">
+            <div className="premium-card p-8 max-w-md w-full text-center animate-scale-in">
+                <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <span className="text-2xl">🏆</span>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Quiz Completed!</h1>
-                <p className="text-gray-500 mb-6">You have already attempted this quiz.</p>
+                <h1 className="text-2xl font-bold text-surface-900 mb-2">Quiz Completed!</h1>
+                <p className="text-surface-500 mb-6">You have already attempted this quiz.</p>
                 
-                <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Your Score</p>
-                    <p className="text-4xl font-bold text-blue-600 mt-2">{attemptData.score} <span className="text-xl text-gray-400">/ {attemptData.totalQuestions}</span></p>
+                <div className="bg-brand-50 p-6 rounded-2xl mb-6">
+                    <p className="text-xs text-surface-400 uppercase font-bold tracking-wider mb-2">Your Score</p>
+                    <p className="text-4xl font-extrabold text-brand-600">
+                      {attemptData.score} <span className="text-xl text-surface-400">/ {attemptData.totalQuestions}</span>
+                    </p>
                 </div>
 
-                <button onClick={() => navigate(-1)} className="bg-black text-white px-6 py-2.5 rounded hover:bg-gray-800 transition w-full">
+                <button onClick={() => navigate(-1)} className="btn-primary w-full">
                     Back to Quiz List
                 </button>
             </div>
@@ -135,57 +141,88 @@ const QuizPlayer = () => {
       )
   }
 
-  // --- VIEW 2: QUIZ PLAYER (Normal) ---
+  // --- VIEW 2: QUIZ PLAYER ---
   const currentQuestion = quizData.questions[currentQuestionIndex]
+  const progressPercent = ((currentQuestionIndex + 1) / quizData.questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-10 px-4">
-      <div className="w-full max-w-2xl flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">{quizData.title}</h1>
-        {timeLeft !== null && (
-            <div className={`px-4 py-2 rounded font-mono font-bold text-lg border ${timeLeft < 60 ? 'bg-red-100 text-red-600 border-red-300 animate-pulse' : 'bg-blue-100 text-blue-600 border-blue-300'}`}>
-                ⏱ {formatTime(timeLeft)}
+    <div className="min-h-screen bg-surface-50 flex flex-col items-center pt-10 px-4 pb-16">
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-xl font-bold text-surface-900">{quizData.title}</h1>
+          {timeLeft !== null && (
+            <div className={`px-4 py-2 rounded-xl font-mono font-bold text-sm border ${
+              timeLeft < 60 
+                ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' 
+                : 'bg-brand-50 text-brand-600 border-brand-200'
+            }`}>
+              ⏱ {formatTime(timeLeft)}
             </div>
-        )}
-      </div>
-
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-2xl border border-gray-200">
-        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
-            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}></div>
+          )}
         </div>
 
-        <div className="mb-6">
-            <span className="text-sm text-gray-500 font-medium">Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
-            <h2 className="text-xl text-gray-800 font-semibold mt-2">{currentQuestion.questionText}</h2>
-        </div>
+        {/* Quiz Card */}
+        <div className="premium-card p-6 md:p-8 animate-fade-in">
+          {/* Progress */}
+          <div className="w-full bg-surface-100 rounded-full h-2 mb-6">
+            <div 
+              className="bg-brand-600 h-2 rounded-full transition-all duration-500 ease-out" 
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
 
-        <div className="flex flex-col gap-3">
+          {/* Question */}
+          <div className="mb-6">
+            <span className="badge-primary mb-3 inline-flex">Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
+            <h2 className="text-lg md:text-xl text-surface-900 font-semibold mt-2 leading-relaxed">{currentQuestion.questionText}</h2>
+          </div>
+
+          {/* Options */}
+          <div className="flex flex-col gap-3">
             {currentQuestion.options.map((option, index) => (
-                <button 
-                    key={index}
-                    onClick={() => handleOptionSelect(index)}
-                    className={`text-left p-4 rounded border transition-all ${selectedAnswers[currentQuestionIndex] === index ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'border-gray-200 hover:bg-gray-50'}`}
-                >
-                    <span className="font-medium mr-3 text-gray-500">{String.fromCharCode(65 + index)}.</span>
-                    {option}
-                </button>
+              <button 
+                key={index}
+                onClick={() => handleOptionSelect(index)}
+                className={`text-left p-4 rounded-xl border-2 transition-all duration-200 text-sm ${
+                  selectedAnswers[currentQuestionIndex] === index 
+                    ? 'bg-brand-50 border-brand-500 text-brand-900 shadow-sm' 
+                    : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50 text-surface-700'
+                }`}
+              >
+                <span className={`font-semibold mr-3 ${
+                  selectedAnswers[currentQuestionIndex] === index ? 'text-brand-600' : 'text-surface-400'
+                }`}>
+                  {String.fromCharCode(65 + index)}.
+                </span>
+                {option}
+              </button>
             ))}
-        </div>
+          </div>
 
-        <div className="flex justify-between mt-8 pt-6 border-t border-gray-100">
-            <button onClick={handlePrevious} disabled={currentQuestionIndex === 0} className={`px-6 py-2 rounded ${currentQuestionIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}>Previous</button>
+          {/* Navigation */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-surface-100">
+            <button 
+              onClick={handlePrevious} 
+              disabled={currentQuestionIndex === 0} 
+              className={`btn-ghost ${currentQuestionIndex === 0 ? '!text-surface-300 cursor-not-allowed' : ''}`}
+            >
+              ← Previous
+            </button>
             {currentQuestionIndex === quizData.questions.length - 1 ? (
-                // --- 3. DISABLE BUTTON WHILE SUBMITTING ---
-                <button 
-                    onClick={() => handleSubmit(false)} 
-                    disabled={isSubmitting} // Disable when true
-                    className={`px-8 py-2 rounded font-medium text-white ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                >
-                    {isSubmitting ? "Submitting..." : "Submit Quiz"}
-                </button>
+              <button 
+                onClick={() => handleSubmit(false)} 
+                disabled={isSubmitting}
+                className={`${isSubmitting ? 'bg-surface-300 text-surface-500 cursor-not-allowed px-6 py-2.5 rounded-xl text-sm font-semibold' : 'btn-primary !bg-emerald-600 hover:!bg-emerald-700'}`}
+              >
+                {isSubmitting ? "Submitting..." : "Submit Quiz ✓"}
+              </button>
             ) : (
-                <button onClick={handleNext} className="bg-blue-600 text-white px-8 py-2 rounded hover:bg-blue-700 font-medium">Next Question</button>
+              <button onClick={handleNext} className="btn-primary">
+                Next Question →
+              </button>
             )}
+          </div>
         </div>
       </div>
     </div>

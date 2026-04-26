@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 const Rating = ({ initialRating, onRate }) => {
 
     const [rating, setRating] = useState(initialRating || 0);
+    const [hoverRating, setHoverRating] = useState(0);
 
     const handleRating = (value) => {
         setRating(value);
@@ -16,17 +17,24 @@ const Rating = ({ initialRating, onRate }) => {
     }, [initialRating]);
 
     return (
-        <div className="flex gap-2">
+        <div className="flex gap-1">
             {Array.from({ length: 5 }, (_, index) => {
                 const starValue = index + 1;
                 return (
-                    <span
+                    <button
                         key={index}
-                        className={`text-xl sm:text-2xl cursor-pointer transition-colors ${starValue <= rating ? 'text-yellow-500' : 'text-gray-400'}`}
+                        type="button"
+                        className={`text-2xl transition-all duration-200 hover:scale-110 active:scale-95 ${
+                            starValue <= (hoverRating || rating) 
+                                ? 'text-amber-400 drop-shadow-sm' 
+                                : 'text-surface-200'
+                        }`}
                         onClick={() => handleRating(starValue)}
+                        onMouseEnter={() => setHoverRating(starValue)}
+                        onMouseLeave={() => setHoverRating(0)}
                     >
-                        &#9733;
-                    </span>
+                        ★
+                    </button>
                 );
             })}
         </div>

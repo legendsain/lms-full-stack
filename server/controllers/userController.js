@@ -19,6 +19,11 @@ export const getUserData = async (req, res) => {
             return res.json({ success: false, message: 'User Not Found' })
         }
 
+        // Stamp login date for at-risk analytics tracking
+        user.lastLoginDate = new Date();
+        user.gamification.lastActivity = new Date();
+        await user.save();
+
         res.json({ success: true, user })
 
     } catch (error) {

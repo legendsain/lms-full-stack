@@ -11,13 +11,15 @@ const userSchema = new mongoose.Schema({
             ref: 'Course'
         }
     ],
-    // --- NEW GAMIFICATION SCHEMA ---
+    // --- GAMIFICATION SCHEMA ---
         gamification: {
             points: { type: Number, default: 0 },        // XP (Leaderboard)
             tokens: { type: Number, default: 0 },        // Currency (Shop)
             quizzesCompleted: { type: Number, default: 0 },
             lastActivity: { type: Date, default: Date.now }
         },
+    // --- LOGIN TRACKING (for At-Risk analytics) ---
+    lastLoginDate: { type: Date, default: null },
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);

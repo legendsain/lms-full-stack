@@ -36,35 +36,51 @@ const StudentsEnrolled = () => {
   }, [isEducator])
 
   return enrolledStudents ? (
-    <div className="min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
-      <div className="flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md bg-white border border-gray-500/20 ">
-        <table className="table-fixed md:table-auto w-full overflow-hidden pb-4">
-          <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
-            <tr>
-              <th className="px-4 py-3 font-semibold text-center hidden sm:table-cell">#</th>
-              <th className="px-4 py-3 font-semibold">Student Name</th>
-              <th className="px-4 py-3 font-semibold">Course Title</th>
-              <th className="px-4 py-3 font-semibold hidden sm:table-cell">Date</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm text-gray-500">
-            {enrolledStudents.map((item, index) => (
-              <tr key={index} className="border-b border-gray-500/20">
-                <td className="px-4 py-3 text-center hidden sm:table-cell">{index + 1}</td>
-                <td className="md:px-4 px-2 py-3 flex items-center space-x-3">
-                  <img
-                    src={item.student.imageUrl}
-                    alt=""
-                    className="w-9 h-9 rounded-full"
-                  />
-                  <span className="truncate">{item.student.name}</span>
-                </td>
-                <td className="px-4 py-3 truncate">{item.courseTitle}</td>
-                <td className="px-4 py-3 hidden sm:table-cell">{new Date(item.purchaseDate).toLocaleDateString()}</td>
+    <div className="min-h-screen p-6 md:p-8 animate-fade-in">
+      <div className="max-w-5xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-surface-900 tracking-tight">Students Enrolled</h1>
+          <p className="text-sm text-surface-500 mt-1">{enrolledStudents.length} total enrolment{enrolledStudents.length !== 1 ? 's' : ''}</p>
+        </div>
+
+        <div className="premium-card overflow-hidden">
+          <table className="table-premium">
+            <thead>
+              <tr>
+                <th className="hidden sm:table-cell w-16">#</th>
+                <th>Student Name</th>
+                <th>Course Title</th>
+                <th className="hidden sm:table-cell">Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {enrolledStudents.map((item, index) => (
+                <tr key={index}>
+                  <td className="text-center hidden sm:table-cell text-surface-400">{index + 1}</td>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={item.student.imageUrl}
+                        alt=""
+                        className="w-8 h-8 rounded-full ring-2 ring-surface-100"
+                      />
+                      <span className="truncate font-medium text-surface-800">{item.student.name}</span>
+                    </div>
+                  </td>
+                  <td className="truncate">{item.courseTitle}</td>
+                  <td className="hidden sm:table-cell text-surface-400">{new Date(item.purchaseDate).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {enrolledStudents.length === 0 && (
+            <div className="p-12 text-center">
+              <div className="text-4xl mb-3">👨‍🎓</div>
+              <p className="text-surface-400">No students enrolled yet.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   ) : <Loading />

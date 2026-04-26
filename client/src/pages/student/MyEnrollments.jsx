@@ -49,79 +49,88 @@ const MyEnrollments = () => {
 
     return (
         <>
-            <div className='md:px-36 px-8 pt-10'>
+            <div className='section-container pt-10 pb-16 animate-fade-in'>
+                <div className="mb-8">
+                  <h1 className='text-2xl md:text-3xl font-extrabold text-surface-900 tracking-tight'>My Enrollments</h1>
+                  <p className="text-sm text-surface-500 mt-1">Track your progress and continue learning.</p>
+                </div>
 
-                <h1 className='text-2xl font-semibold'>My Enrollments</h1>
+                {enrolledCourses.length === 0 ? (
+                  <div className="text-center py-20 premium-card">
+                    <div className="text-4xl mb-4">📖</div>
+                    <h3 className="text-lg font-semibold text-surface-700">No enrollments yet</h3>
+                    <p className="text-surface-500 text-sm mt-1 mb-4">Start your learning journey by enrolling in a course.</p>
+                    <button onClick={() => navigate('/course-list')} className="btn-primary">Browse Courses</button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {enrolledCourses.map((course, index) => (
+                      <div key={index} className="premium-card p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center gap-4 animate-fade-in-up" style={{animationDelay: `${index * 0.05}s`}}>
+                        
+                        {/* Course Info */}
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <img src={course.courseThumbnail} alt="" className="w-16 sm:w-24 md:w-28 aspect-video object-cover rounded-xl shadow-sm flex-shrink-0" />
+                          <div className='flex-1 min-w-0'>
+                            <p className='mb-1.5 text-sm md:text-base font-semibold text-surface-900 truncate'>{course.courseTitle}</p>
+                            <div className="w-full max-w-xs">
+                              <Line 
+                                className='rounded-full' 
+                                strokeWidth={3} 
+                                trailWidth={3}
+                                strokeColor="#6366f1"
+                                trailColor="#e5e5e5"
+                                percent={progressArray[index] ? (progressArray[index].lectureCompleted * 100) / progressArray[index].totalLectures : 0} 
+                              />
+                            </div>
+                            <div className="flex items-center gap-4 mt-1.5 text-xs text-surface-500">
+                              <span>{calculateCourseDuration(course)}</span>
+                              <span className="w-1 h-1 bg-surface-300 rounded-full"></span>
+                              <span>
+                                {progressArray[index] && `${progressArray[index].lectureCompleted}/${progressArray[index].totalLectures}`} Lectures
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                <table className="md:table-auto table-fixed w-full overflow-hidden border mt-10">
-                    <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden">
-                        <tr>
-                            <th className="px-4 py-3 font-semibold truncate">Course</th>
-                            <th className="px-4 py-3 font-semibold truncate max-sm:hidden">Duration</th>
-                            <th className="px-4 py-3 font-semibold truncate max-sm:hidden">Completed</th>
-                            <th className="px-4 py-3 font-semibold truncate">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-gray-700">
-                        {enrolledCourses.map((course, index) => (
-                            <tr key={index} className="border-b border-gray-500/20 hover:bg-gray-50 transition-colors">
-                                <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 ">
-                                    <img src={course.courseThumbnail} alt="" className="w-14 sm:w-24 md:w-28 rounded shadow-sm" />
-                                    <div className='flex-1'>
-                                        <p className='mb-1 max-sm:text-sm font-medium text-gray-800'>{course.courseTitle}</p>
-                                        <Line className='bg-gray-300 rounded-full' strokeWidth={2} percent={progressArray[index] ? (progressArray[index].lectureCompleted * 100) / progressArray[index].totalLectures : 0} />
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3 max-sm:hidden">{calculateCourseDuration(course)}</td>
-                                <td className="px-4 py-3 max-sm:hidden">
-                                    {progressArray[index] && `${progressArray[index].lectureCompleted} / ${progressArray[index].totalLectures}`}
-                                    <span className='text-xs ml-2 text-gray-500'>Lectures</span>
-                                </td>
-                                <td className="px-4 py-3 max-sm:text-right">
-                                    
-                                    {/* Action Buttons Container */}
-                                    <div className="flex flex-wrap items-center gap-2 max-sm:justify-end">
-                                        
-                                        <button 
-                                            onClick={() => navigate('/player/' + course._id)} 
-                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 max-sm:text-xs text-white rounded transition shadow-sm'
-                                        >
-                                            {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 ? 'Completed' : 'On Going'}
-                                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                          <button 
+                            onClick={() => navigate('/player/' + course._id)} 
+                            className='btn-primary !text-xs !px-4 !py-2'
+                          >
+                            {progressArray[index] && progressArray[index].lectureCompleted / progressArray[index].totalLectures === 1 
+                              ? '✓ Completed' 
+                              : '▶ Continue'}
+                          </button>
 
-                                        <button 
-                                            onClick={() => navigate('/course/quizzes/' + course._id)}
-                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 max-sm:text-xs text-white rounded transition shadow-sm'
-                                        >
-                                            Take Quiz
-                                        </button>
+                          <button 
+                            onClick={() => navigate('/course/quizzes/' + course._id)}
+                            className='btn-secondary !text-xs !px-4 !py-2'
+                          >
+                            Quiz
+                          </button>
 
-                                        {/* --- NEW: MIND MAPS BUTTON --- */}
-                                        <button 
-                                            onClick={() => navigate('/student/mindmaps/' + course._id)}
-                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-600 hover:bg-purple-700 max-sm:text-xs text-white rounded transition shadow-sm'
-                                        >
-                                            Mind Maps
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => navigate('/student/teams/' + course._id)}
-                                            className='px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 max-sm:text-xs text-white rounded transition shadow-sm'
-                                        >
-                                            My Teams
-                                        </button>
-
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-
+                          <button 
+                            onClick={() => navigate('/student/mindmaps/' + course._id)}
+                            className='btn-ghost !text-xs !px-3 !py-2 !text-violet-600 hover:!bg-violet-50'
+                          >
+                            Mind Maps
+                          </button>
+                          
+                          <button 
+                            onClick={() => navigate('/student/teams/' + course._id)}
+                            className='btn-ghost !text-xs !px-3 !py-2 !text-brand-600 hover:!bg-brand-50'
+                          >
+                            Teams
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
 
             <Footer />
-
         </>
     )
 }

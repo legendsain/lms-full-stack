@@ -1,81 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import axios from 'axios';
-import MermaidViewer from '../common/MermaidViewer';
+import { AppContext } from '../../context/AppContext';
+import { toast } from 'react-toastify';
+import ReactFlowDiagram from '../common/ReactFlowDiagram';
 
 const MindMapGenerator = ({ courseId }) => {
+    const { backendUrl, getToken } = useContext(AppContext);
     const [topic, setTopic] = useState("");
-    const [generatedSyntax, setGeneratedSyntax] = useState("");
+    const [generatedDiagram, setGeneratedDiagram] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const handleGenerate = async () => {
-        if (!topic.trim()) return alert("Please enter a topic");
+        if (!topic.trim()) return toast.error("Please enter a topic");
         setLoading(true);
-        setGeneratedSyntax(""); // Clear previous map while loading
-        
+        setGeneratedDiagram(null);
+
         try {
-            // Adjust endpoint if your route structure is different
-            const { data } = await axios.post('/api/mindmap/generate', { topic });
-            
+            const token = await getToken();
+            const { data } = await axios.post(`${backendUrl}/api/mindmap/generate`,
+                { topic, diagramType: 'mind map' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
             if (data.success) {
-                console.log("Received Syntax in Frontend:", data.mermaidSyntax); // Debug log
-                setGeneratedSyntax(data.mermaidSyntax);
+                setGeneratedDiagram(data.diagramData);
+                toast.success("AI diagram generated!");
             } else {
-                alert(data.message || "Failed to generate mind map.");
+                toast.error(data.message || "Failed to generate mind map.");
             }
         } catch (error) {
-            console.error("API Error:", error);
-            alert("Generation failed due to server error.");
+            toast.error("Generation failed due to server error.");
         }
         setLoading(false);
     };
 
     const handleSave = async () => {
         try {
-            await axios.post('/api/mindmap/save', {
+            const token = await getToken();
+            await axios.post(`${backendUrl}/api/mindmap/save`, {
                 courseId,
                 title: `${topic} Mind Map`,
-                mermaidSyntax: generatedSyntax
-            });
-            alert("Published to students!");
+                diagramData: generatedDiagram,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            toast.success("Published to students!");
         } catch (error) {
-            alert("Save failed");
+            toast.error("Save failed");
         }
     };
 
     return (
-        <div className="p-6 bg-gray-50 rounded-xl">
-            <h2 className="text-xl font-bold mb-4">Generate AI Mind Map</h2>
-            
+        <div className="premium-card p-6">
+            <h2 className="text-lg font-bold text-surface-900 mb-4">Generate AI Mind Map</h2>
+
             <div className="flex gap-4 mb-6">
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     placeholder="Enter topic (e.g., Photosynthesis)"
-                    className="flex-1 p-2 border rounded"
+                    className="input-field flex-1"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
-                <button 
-                    onClick={handleGenerate} 
+                <button
+                    onClick={handleGenerate}
                     disabled={loading}
-                    className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="btn-primary disabled:opacity-50"
                 >
-                    {loading ? "Thinking..." : "Generate Map"}
+                    {loading ? "Generating..." : "Generate Map"}
                 </button>
             </div>
 
-            {/* The Safe Viewer */}
-            {generatedSyntax && (
-                <div className="mt-4">
-                    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-                        {/* We use a key to force React to completely unmount and remount the viewer on new syntax */}
-                        <MermaidViewer key={generatedSyntax} chartSyntax={generatedSyntax} />
-                    </div>
-                    
-                    <button 
-                        onClick={handleSave} 
-                        className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
-                    >
+            {generatedDiagram && (
+                <div className="space-y-4">
+                    <ReactFlowDiagram diagramData={generatedDiagram} height="400px" />
+                    <button onClick={handleSave} className="btn-primary !bg-emerald-600 hover:!bg-emerald-700">
                         Publish to Students
                     </button>
                 </div>

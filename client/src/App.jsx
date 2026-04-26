@@ -20,17 +20,30 @@ import QuizPlayer from './pages/student/QuizPlayer'
 import StudentTeams from './pages/student/StudentTeams'
 import GroupGenerator from './pages/educator/GroupGenerator'
 import CareerDashboard from './pages/student/CareerDashboard' 
-import StudentQuizList from './pages/student/StudentQuizList' // <--- 1. NEW IMPORT
+import StudentQuizList from './pages/student/StudentQuizList'
 import Leaderboard from './pages/student/Leaderboard'
 import ViewMindMaps from './pages/student/ViewMindMaps';
 import ManageMindMap from './pages/educator/ManageMindMap';
+import TeamChat from './pages/student/TeamChat';
+
 const App = () => {
 
   const isEducatorRoute = useMatch('/educator/*');
 
   return (
-    <div className="text-default min-h-screen bg-white">
-      <ToastContainer />
+    <div className="text-default min-h-screen bg-white text-surface-900">
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       
       {/* Render Student Navbar only if not on educator routes */}
       {!isEducatorRoute && <Navbar />}
@@ -56,6 +69,7 @@ const App = () => {
         
         {/* Teams Route */}
         <Route path="/student/teams/:courseId" element={<StudentTeams />} />
+        <Route path="/team/chat/:teamId" element={<TeamChat />} />
 
 
         {/* --- EDUCATOR ROUTES --- */}

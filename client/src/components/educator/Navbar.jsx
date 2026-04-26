@@ -10,15 +10,19 @@ const Navbar = ({ bgColor }) => {
   const { user } = useUser()
 
   return isEducator && user && (
-    <div className={`flex items-center justify-between px-4 md:px-8 border-b border-gray-500 py-3 ${bgColor}`}>
-      <Link to="/">
-        <img src={assets.logo} alt="Logo" className="w-28 lg:w-32" />
+    <nav className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-8 border-b border-surface-200 py-3 bg-white/90 backdrop-blur-xl">
+      <Link to="/" className="hover:opacity-80 transition-opacity">
+        <img src={assets.logo} alt="EduNova" className="w-28 lg:w-32" />
       </Link>
-      <div className="flex items-center gap-5 text-gray-500 relative">
-        <p>Hi! {user.fullName}</p>
-        <UserButton />
+      <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-2 text-sm">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+          <span className="text-surface-600 font-medium">{user.fullName}</span>
+        </div>
+        <div className="h-6 w-px bg-surface-200 hidden sm:block"></div>
+        <UserButton afterSignOutUrl="/" />
       </div>
-    </div>
+    </nav>
   );
 };
 

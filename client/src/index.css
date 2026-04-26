@@ -1,43 +1,223 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-*{
-  font-family: Outfit;
-}
-
+/* ===== BASE LAYER ===== */
 @layer base {
+  * {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   html {
     scroll-behavior: smooth;
   }
+
+  body {
+    @apply bg-white text-surface-900;
+    letter-spacing: -0.01em;
+  }
+
+  /* Elegant scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-300 rounded-full;
+    transition: background 0.2s;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-400;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
 }
 
-::-webkit-scrollbar{
-  display: none;
+/* ===== COMPONENT LAYER ===== */
+@layer components {
+
+  /* --- Premium Buttons --- */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 
+           bg-brand-600 text-white font-semibold text-sm rounded-xl
+           shadow-sm hover:bg-brand-700 hover:shadow-md
+           active:scale-[0.98] transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5
+           bg-white text-surface-700 font-semibold text-sm rounded-xl
+           border border-surface-200 shadow-sm
+           hover:bg-surface-50 hover:border-surface-300 hover:shadow-md
+           active:scale-[0.98] transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-surface-300/40 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           text-surface-600 font-medium text-sm rounded-xl
+           hover:bg-surface-100 hover:text-surface-900
+           active:scale-[0.98] transition-all duration-200 ease-out;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5
+           bg-gradient-to-r from-brand-600 to-violet-600 text-white font-semibold text-sm rounded-xl
+           shadow-md hover:shadow-lg hover:shadow-brand-500/25
+           active:scale-[0.98] transition-all duration-300 ease-out;
+  }
+
+  /* --- Glass Card --- */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 
+           rounded-2xl shadow-glass;
+  }
+
+  /* --- Premium Card --- */
+  .premium-card {
+    @apply bg-white border border-surface-200/80 rounded-2xl 
+           shadow-card hover:shadow-card-hover 
+           transition-all duration-300 ease-out;
+  }
+
+  /* --- Premium Input --- */
+  .input-field {
+    @apply w-full px-4 py-3 bg-surface-50 border border-surface-200 
+           rounded-xl text-surface-900 text-sm placeholder:text-surface-400
+           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400
+           hover:border-surface-300 transition-all duration-200;
+  }
+
+  /* --- Badge --- */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full;
+  }
+
+  .badge-primary {
+    @apply badge bg-brand-100 text-brand-700;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  /* --- Section Layout --- */
+  .section-container {
+    @apply max-w-7xl mx-auto px-6 sm:px-8 lg:px-12;
+  }
+
+  /* --- Table Premium --- */
+  .table-premium {
+    @apply w-full border-collapse;
+  }
+
+  .table-premium thead {
+    @apply bg-surface-50;
+  }
+
+  .table-premium th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider;
+  }
+
+  .table-premium td {
+    @apply px-4 py-4 text-sm text-surface-700;
+  }
+
+  .table-premium tbody tr {
+    @apply border-t border-surface-100 hover:bg-surface-50/50 transition-colors duration-150;
+  }
+
+  /* --- Stat Card --- */
+  .stat-card {
+    @apply premium-card p-6 flex items-center gap-4;
+  }
+
+  .stat-card .stat-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0;
+  }
+
+  .stat-card .stat-value {
+    @apply text-2xl font-bold text-surface-900;
+  }
+
+  .stat-card .stat-label {
+    @apply text-sm text-surface-500 mt-0.5;
+  }
 }
 
-.rich-text { font-size: 15px; color: #7A7B7D; }
+/* ===== UTILITY LAYER ===== */
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-600 to-violet-600;
+  }
 
+  .hover-lift {
+    @apply hover:-translate-y-1 hover:shadow-card-hover transition-all duration-300 ease-out;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out;
+  }
+}
+
+/* ===== RICH TEXT (preserved) ===== */
+.rich-text { font-size: 15px; color: #6b7280; line-height: 1.7; }
 .rich-text p { margin-bottom: 16px; }
-
-.rich-text h1 { font-size: 36px; font-weight: 800; color: #252525; margin: 32px 0; }
-
-.rich-text h2 { font-size: 22px; font-weight: 700; color: #252525; margin: 24px 0; }
-
-.rich-text h3 { font-size: 18px; font-weight: 600; color: #333333; margin: 20px 0; }
-
-.rich-text h4 { font-size: 16px; font-weight: 500; color: #444444; margin: 16px 0; }
-
-.rich-text h5 { font-size: 14px; font-weight: 400; color: #555555; margin: 12px 0; }
-
-.rich-text h6 { font-size: 12px; font-weight: 400; color: #666666; margin: 8px 0; }
-
-.rich-text strong { font-weight: 700; }
-
-.rich-text ol { margin-left: 30px; list-style-type: decimal; }
-
-.rich-text ul { margin-left: 30px; list-style-type: disc; }
-
+.rich-text h1 { font-size: 32px; font-weight: 800; color: #111827; margin: 32px 0 16px; letter-spacing: -0.02em; }
+.rich-text h2 { font-size: 22px; font-weight: 700; color: #1f2937; margin: 24px 0 12px; letter-spacing: -0.01em; }
+.rich-text h3 { font-size: 18px; font-weight: 600; color: #374151; margin: 20px 0 10px; }
+.rich-text h4 { font-size: 16px; font-weight: 600; color: #4b5563; margin: 16px 0 8px; }
+.rich-text h5 { font-size: 14px; font-weight: 500; color: #6b7280; margin: 12px 0; }
+.rich-text h6 { font-size: 12px; font-weight: 500; color: #9ca3af; margin: 8px 0; }
+.rich-text strong { font-weight: 700; color: #1f2937; }
+.rich-text ol { margin-left: 24px; list-style-type: decimal; }
+.rich-text ul { margin-left: 24px; list-style-type: disc; }
 .rich-text li { margin-bottom: 8px; }
+
+/* ===== TOASTIFY OVERRIDES ===== */
+.Toastify__toast {
+  border-radius: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.12) !important;
+}
+
+/* ===== QUILL OVERRIDES ===== */
+.ql-toolbar.ql-snow {
+  border-radius: 12px 12px 0 0 !important;
+  border-color: #e5e5e5 !important;
+  background: #fafafa !important;
+}
+.ql-container.ql-snow {
+  border-radius: 0 0 12px 12px !important;
+  border-color: #e5e5e5 !important;
+  font-family: 'Inter', sans-serif !important;
+  min-height: 200px;
+}
+.ql-editor {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #374151;
+}
