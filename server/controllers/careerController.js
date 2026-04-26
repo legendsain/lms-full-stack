@@ -38,7 +38,8 @@ export const analyzeCareerGap = async (req, res) => {
         // ================================================================
 
         // -- Course Performance Summary --
-        const coursePerformance = user.enrolledCourses.map(course => {
+        const enrolledCourses = user.enrolledCourses || [];
+        const coursePerformance = enrolledCourses.map(course => {
             // Find quiz results for this course
             const courseQuizzes = quizResults.filter(
                 qr => qr.courseId && qr.courseId._id.toString() === course._id.toString()
@@ -93,7 +94,7 @@ export const analyzeCareerGap = async (req, res) => {
 
         // -- Overall Stats --
         const overallStats = {
-            totalCoursesEnrolled: user.enrolledCourses.length,
+            totalCoursesEnrolled: enrolledCourses.length,
             totalQuizzesCompleted: user.gamification?.quizzesCompleted || 0,
             totalXP: user.gamification?.points || 0,
         };
@@ -192,11 +193,11 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 }
 
 RULES:
-- "score" is an integer 0-100 representing career readiness.
+- "score" is an integer 0-100 representing career readiness (use lower scores if they lack relevant courses).
 - "careerPaths" must have exactly 3 items, sorted by matchScore descending.
 - "roadmap" must have exactly 4 phases, each with 2-3 specific tasks.
-- Be specific! Reference the student's actual course names and performance where relevant.
-- Do NOT be generic. Tailor everything to the student's real data.
+- If the student has relevant courses, reference their actual course names and performance to personalize the roadmap.
+- CRITICAL: If the student has no courses enrolled, or no courses relevant to the target role, you MUST still return a valid JSON object providing a generalized roadmap to get them started in that career. Do not refuse to answer. Do not output raw text explaining that you lack data.
 
 RESPOND WITH ONLY THE JSON OBJECT.
 `;
