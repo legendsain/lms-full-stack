@@ -42,3 +42,51 @@ export const getChatHistory = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+// ====================================================================
+// SEND MESSAGE — REST API approach
+// ====================================================================
+export const sendMessage = async (req, res) => {
+    try {
+        const { teamId } = req.params;
+        const { text, senderName, senderImage } = req.body;
+        const userId = req.auth.userId;
+
+        if (!text || !text.trim()) {
+            return res.json({ success: false, message: "Message text is required." });
+        }
+
+        // Verify membership (optional, but good for security)
+        const team = await StudyGroup.findById(teamId);
+        if (!team) return res.json({ success: false, message: "Team not found." });
+        
+        const isMember = team.members.some(m => m.userId === userId);
+        if (!isMember) return res.json({ success: false, message: "Not authorized." });
+
+        // Persist message
+        const newMessage = await Message.create({
+            teamId,
+            senderId: userId,
+            senderName: senderName || "User",
+            senderImage: senderImage || "",
+            text: text.trim().slice(0, 2000),
+        });
+
+        res.json({
+            success: true,
+            message: {
+                _id: newMessage._id,
+                teamId: newMessage.teamId,
+                senderId: newMessage.senderId,
+                senderName: newMessage.senderName,
+                senderImage: newMessage.senderImage,
+                text: newMessage.text,
+                createdAt: newMessage.createdAt,
+            }
+        });
+
+    } catch (error) {
+        console.error("Send Message Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+};

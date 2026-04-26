@@ -87,6 +87,12 @@ const ReactFlowDiagram = ({ diagramData, height = '550px' }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+    React.useEffect(() => {
+        setNodes(initialNodes);
+        setEdges(initialEdges);
+        console.log("Parsed Edges:", diagramData?.edges);
+    }, [initialNodes, initialEdges, setNodes, setEdges, diagramData]);
+
     if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) {
         return (
             <div className="flex items-center justify-center text-surface-400 py-16" style={{ height }}>

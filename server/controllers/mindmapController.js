@@ -68,6 +68,7 @@ RULES FOR EDGES:
 1. Every non-root node MUST have exactly one incoming edge from its parent.
 2. Edge IDs should follow the pattern "e{source}-{target}".
 3. The graph should be a clean tree — no cycles, no cross-links.
+4. CRITICAL: Every 'source' and 'target' value in the 'edges' array MUST exactly match an existing 'id' from the 'nodes' array. All IDs must be strings. If you create an edge, the source and target nodes MUST exist.
 
 DIAGRAM TYPE GUIDANCE:
 - For "mind map": Create a radial tree spreading outward from the root.

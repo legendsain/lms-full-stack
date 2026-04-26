@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
@@ -15,13 +14,9 @@ const TeamChat = () => {
     const [newMessage, setNewMessage] = useState('');
     const [team, setTeam] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [onlineUsers, setOnlineUsers] = useState([]);
-    const [typingUser, setTypingUser] = useState(null);
-    const [connected, setConnected] = useState(false);
+    // Removed connected, onlineUsers, and typingUser for REST polling approach
 
-    const socketRef = useRef(null);
     const messagesEndRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
     const inputRef = useRef(null);
 
     // Auto-scroll to bottom
@@ -33,111 +28,75 @@ const TeamChat = () => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // ---- FETCH CHAT HISTORY (REST) ----
-    useEffect(() => {
-        const fetchHistory = async () => {
-            try {
-                const token = await getToken();
-                const { data } = await axios.get(`${backendUrl}/api/chat/${teamId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (data.success) {
-                    setMessages(data.messages);
-                    setTeam(data.team);
-                } else {
-                    toast.error(data.message);
-                }
-            } catch (error) {
-                toast.error("Failed to load chat history");
-            }
-            setLoading(false);
-        };
-
-        if (teamId) fetchHistory();
-    }, [teamId, backendUrl]);
-
-    // ---- SOCKET.IO CONNECTION ----
-    useEffect(() => {
-        if (!userData || !team) return;
-
-        const socket = io(backendUrl, {
-            transports: ['websocket', 'polling'],
-        });
-        socketRef.current = socket;
-
-        socket.on('connect', () => {
-            setConnected(true);
-            // Join the team room
-            socket.emit('join-team', {
-                teamId,
-                userId: userData._id,
-                userName: userData.name,
-                userImage: userData.imageUrl,
+    // ---- FETCH CHAT HISTORY (REST) & POLLING ----
+    const fetchHistory = useCallback(async () => {
+        if (!teamId) return;
+        try {
+            const token = await getToken();
+            const { data } = await axios.get(`${backendUrl}/api/chat/${teamId}`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
-        });
 
-        socket.on('disconnect', () => {
-            setConnected(false);
-        });
+            if (data.success) {
+                setMessages(data.messages);
+                setTeam(data.team);
+            } else {
+                // If there's an error like "Team not found", we probably don't want to spam toast errors every 3 seconds.
+                // We'll skip toast.error here or only show it on initial load.
+            }
+        } catch (error) {
+            console.error("Failed to load chat history", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [teamId, backendUrl, getToken]);
 
-        // Listen for new messages
-        socket.on('new-message', (message) => {
-            setMessages(prev => [...prev, message]);
-        });
+    useEffect(() => {
+        fetchHistory();
+        const intervalId = setInterval(() => {
+            fetchHistory();
+        }, 3000);
 
-        // Online users
-        socket.on('online-users', (users) => {
-            setOnlineUsers(users);
-        });
+        return () => clearInterval(intervalId);
+    }, [fetchHistory]);
 
-        // Typing indicators
-        socket.on('user-typing', ({ userName }) => {
-            setTypingUser(userName);
-        });
-
-        socket.on('user-stop-typing', () => {
-            setTypingUser(null);
-        });
-
-        return () => {
-            socket.disconnect();
-            socketRef.current = null;
-        };
-    }, [userData, team, backendUrl, teamId]);
-
-    // ---- SEND MESSAGE ----
-    const handleSend = (e) => {
+    // ---- SEND MESSAGE (REST + Optimistic UI) ----
+    const handleSend = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || !socketRef.current || !userData) return;
+        if (!newMessage.trim() || !userData) return;
 
-        socketRef.current.emit('send-message', {
-            teamId,
-            userId: userData._id,
-            userName: userData.name,
-            userImage: userData.imageUrl,
-            text: newMessage.trim(),
-        });
-
-        // Stop typing
-        socketRef.current.emit('stop-typing', { teamId });
+        const textToSend = newMessage.trim();
         setNewMessage('');
         inputRef.current?.focus();
-    };
 
-    // ---- TYPING INDICATOR ----
-    const handleTyping = (e) => {
-        setNewMessage(e.target.value);
+        // Optimistic UI
+        const optimisticMsg = {
+            _id: Date.now().toString(), // temporary ID
+            teamId,
+            senderId: userData._id,
+            senderName: userData.name,
+            senderImage: userData.imageUrl || '',
+            text: textToSend,
+            createdAt: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, optimisticMsg]);
 
-        if (!socketRef.current) return;
+        try {
+            const token = await getToken();
+            const { data } = await axios.post(`${backendUrl}/api/chat/${teamId}`, {
+                text: textToSend,
+                senderName: userData.name,
+                senderImage: userData.imageUrl
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-        socketRef.current.emit('typing', { teamId, userName: userData?.name });
-
-        // Clear previous timeout
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => {
-            socketRef.current?.emit('stop-typing', { teamId });
-        }, 1500);
+            if (!data.success) {
+                toast.error("Failed to send message");
+            }
+        } catch (error) {
+            toast.error("Failed to send message");
+        }
     };
 
     // ---- FORMAT TIME ----
@@ -193,33 +152,10 @@ const TeamChat = () => {
                                 <div>
                                     <h1 className="text-lg font-bold text-surface-900 flex items-center gap-2">
                                         {team?.groupName || 'Team Chat'}
-                                        <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-surface-300'}`}></span>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                                     </h1>
                                     <p className="text-xs text-surface-400">{team?.batchTitle}</p>
                                 </div>
-                            </div>
-
-                            {/* Online Users */}
-                            <div className="flex items-center gap-2">
-                                <div className="flex -space-x-2">
-                                    {onlineUsers.slice(0, 5).map((user, i) => (
-                                        <img
-                                            key={user.userId}
-                                            src={user.userImage}
-                                            alt={user.userName}
-                                            title={user.userName}
-                                            className="w-7 h-7 rounded-full ring-2 ring-white object-cover"
-                                        />
-                                    ))}
-                                    {onlineUsers.length > 5 && (
-                                        <div className="w-7 h-7 rounded-full ring-2 ring-white bg-surface-200 flex items-center justify-center text-[10px] font-bold text-surface-600">
-                                            +{onlineUsers.length - 5}
-                                        </div>
-                                    )}
-                                </div>
-                                <span className="text-xs text-surface-400 hidden sm:inline">
-                                    {onlineUsers.length} online
-                                </span>
                             </div>
                         </div>
 
@@ -227,7 +163,6 @@ const TeamChat = () => {
                         {team?.members && (
                             <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100 overflow-x-auto">
                                 {team.members.map((member) => {
-                                    const isOnline = onlineUsers.some(u => u.userId === member.userId);
                                     return (
                                         <div key={member.userId} className="flex items-center gap-1.5 bg-surface-50 px-2.5 py-1 rounded-full flex-shrink-0">
                                             <div className="relative">
@@ -238,7 +173,6 @@ const TeamChat = () => {
                                                         {member.studentName?.[0]}
                                                     </div>
                                                 )}
-                                                <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${isOnline ? 'bg-emerald-500' : 'bg-surface-300'}`}></div>
                                             </div>
                                             <span className="text-[11px] font-medium text-surface-600">
                                                 {member.userId === userData?._id ? 'You' : member.studentName?.split(' ')[0]}
@@ -315,20 +249,6 @@ const TeamChat = () => {
                                 </div>
                             ))}
 
-                            {/* Typing indicator */}
-                            {typingUser && typingUser !== userData?.name && (
-                                <div className="flex items-center gap-2 ml-10 mt-2 animate-fade-in">
-                                    <div className="bg-surface-100 px-3 py-2 rounded-2xl rounded-bl-md">
-                                        <div className="flex gap-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-surface-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-surface-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-surface-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                                        </div>
-                                    </div>
-                                    <span className="text-[10px] text-surface-400">{typingUser} is typing...</span>
-                                </div>
-                            )}
-
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -339,16 +259,15 @@ const TeamChat = () => {
                                     ref={inputRef}
                                     type="text"
                                     value={newMessage}
-                                    onChange={handleTyping}
+                                    onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder="Type a message..."
                                     className="flex-1 bg-surface-50 border border-surface-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all"
                                     maxLength={2000}
-                                    disabled={!connected}
                                     autoComplete="off"
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!newMessage.trim() || !connected}
+                                    disabled={!newMessage.trim()}
                                     className="bg-brand-600 hover:bg-brand-700 text-white p-2.5 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -356,9 +275,6 @@ const TeamChat = () => {
                                     </svg>
                                 </button>
                             </form>
-                            {!connected && (
-                                <p className="text-[10px] text-red-500 mt-1 ml-1">⚠️ Disconnected — reconnecting...</p>
-                            )}
                         </div>
                     </div>
                 </div>

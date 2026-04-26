@@ -1,8 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
-import http from 'http'
-import { Server as SocketServer } from 'socket.io'
 import connectDB from './configs/mongodb.js'
 import connectCloudinary from './configs/cloudinary.js'
 import userRouter from './routes/userRoutes.js'
@@ -21,9 +19,6 @@ import StudyGroup from './models/StudyGroup.js';
 
 // Initialize Express
 const app = express()
-
-// Create HTTP server (needed for Socket.io)
-const server = http.createServer(app)
 
 // Connect to database
 await connectDB()
@@ -71,119 +66,9 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/mindmap', mindmapRouter);
 app.use('/api/chat', chatRouter);
 
-// ====================================================================
-// 5. SOCKET.IO SETUP — Real-Time Team Chat
-// ====================================================================
-const io = new SocketServer(server, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
-
-// Track online users per room
-const onlineUsers = new Map(); // roomId -> Set of { socketId, userId, userName, userImage }
-
-io.on('connection', (socket) => {
-  console.log(`[Socket.io] User connected: ${socket.id}`);
-
-  // ---- JOIN TEAM ROOM ----
-  socket.on('join-team', async ({ teamId, userId, userName, userImage }) => {
-    try {
-      // Verify membership
-      const team = await StudyGroup.findById(teamId);
-      if (!team) return;
-
-      const isMember = team.members.some(m => m.userId === userId);
-      if (!isMember) return;
-
-      // Join the Socket.io room
-      socket.join(teamId);
-      socket.teamId = teamId;
-      socket.userId = userId;
-      socket.userName = userName;
-
-      // Track online user
-      if (!onlineUsers.has(teamId)) {
-        onlineUsers.set(teamId, new Map());
-      }
-      onlineUsers.get(teamId).set(socket.id, { userId, userName, userImage });
-
-      // Broadcast updated online list to the room
-      const roomUsers = Array.from(onlineUsers.get(teamId).values());
-      // Deduplicate by userId (user may have multiple tabs)
-      const uniqueUsers = [...new Map(roomUsers.map(u => [u.userId, u])).values()];
-      io.to(teamId).emit('online-users', uniqueUsers);
-
-      console.log(`[Socket.io] ${userName} joined room ${teamId}`);
-    } catch (err) {
-      console.error('[Socket.io] Join error:', err.message);
-    }
-  });
-
-  // ---- SEND MESSAGE ----
-  socket.on('send-message', async ({ teamId, userId, userName, userImage, text }) => {
-    try {
-      if (!text || !text.trim() || !teamId || !userId) return;
-
-      // Persist message to MongoDB
-      const newMessage = await Message.create({
-        teamId,
-        senderId: userId,
-        senderName: userName,
-        senderImage: userImage || '',
-        text: text.trim().slice(0, 2000), // Enforce max length
-      });
-
-      // Broadcast to all users in the room (including sender)
-      io.to(teamId).emit('new-message', {
-        _id: newMessage._id,
-        teamId: newMessage.teamId,
-        senderId: newMessage.senderId,
-        senderName: newMessage.senderName,
-        senderImage: newMessage.senderImage,
-        text: newMessage.text,
-        createdAt: newMessage.createdAt,
-      });
-
-    } catch (err) {
-      console.error('[Socket.io] Message error:', err.message);
-    }
-  });
-
-  // ---- TYPING INDICATOR ----
-  socket.on('typing', ({ teamId, userName }) => {
-    socket.to(teamId).emit('user-typing', { userName });
-  });
-
-  socket.on('stop-typing', ({ teamId }) => {
-    socket.to(teamId).emit('user-stop-typing');
-  });
-
-  // ---- DISCONNECT ----
-  socket.on('disconnect', () => {
-    const teamId = socket.teamId;
-    if (teamId && onlineUsers.has(teamId)) {
-      onlineUsers.get(teamId).delete(socket.id);
-
-      // Broadcast updated online list
-      const roomUsers = Array.from(onlineUsers.get(teamId).values());
-      const uniqueUsers = [...new Map(roomUsers.map(u => [u.userId, u])).values()];
-      io.to(teamId).emit('online-users', uniqueUsers);
-
-      // Clean up empty rooms
-      if (onlineUsers.get(teamId).size === 0) {
-        onlineUsers.delete(teamId);
-      }
-    }
-    console.log(`[Socket.io] User disconnected: ${socket.id}`);
-  });
-});
-
-// Port — use server.listen instead of app.listen for Socket.io
+// Port
 const PORT = process.env.PORT || 5000
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 })
