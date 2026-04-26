@@ -20,60 +20,39 @@ export const generateMindMap = async (req, res) => {
 
         // ---- THE CORE PROMPT ----
         const prompt = `
-You are an Expert Educational Diagram Architect for the Edunova learning platform.
+You are a Senior Structural Logic Architect for the Edunova learning platform.
 
-TASK: Generate a visual ${diagramType || "mind map"} diagram for the topic: "${topic}".
+TASK: Generate a visual diagram for the topic: "${topic}".
 ${domainContext}
+SUBJECT AWARENESS: Use the provided 'Subject/Domain' input to adjust your terminology. (e.g., if Subject is 'C Programming', use programming logic; if 'Biology', use biological stages).
+
+The user requested diagram format: "${diagramType}".
+If the format is "ai_decide", you MUST choose the best matching format among: "mindmap" (Concept Breakdown), "flowchart" (Step-by-Step Process), or "state" (Lifecycle / Continuous Loop).
 
 OUTPUT FORMAT — You MUST respond with ONLY a valid JSON object. No markdown. No explanation. No text before or after.
 
 The JSON must have exactly this structure:
 {
-  "nodes": [
-    {
-      "id": "1",
-      "type": "root",
-      "data": { "label": "Central Topic Name" },
-      "position": { "x": 400, "y": 0 }
-    },
-    {
-      "id": "2",
-      "type": "branch",
-      "data": { "label": "Subtopic A" },
-      "position": { "x": 100, "y": 150 }
-    },
-    {
-      "id": "3",
-      "type": "leaf",
-      "data": { "label": "Detail or Action" },
-      "position": { "x": 50, "y": 300 }
-    }
-  ],
-  "edges": [
-    { "id": "e1-2", "source": "1", "target": "2" },
-    { "id": "e2-3", "source": "2", "target": "3" }
-  ]
+  "suggestedLayout": "TB", 
+  "nodes": [{ "id": "1", "type": "input", "data": { "label": "Start" } }],
+  "edges": [{ "id": "e1-2", "source": "1", "target": "2", "animated": true }]
 }
 
 RULES FOR NODES:
-1. There must be EXACTLY 1 node with type "root" — this is the central concept. Position it at approximately (400, 0).
-2. Use type "branch" for major subtopics (3-5 branches). Spread them horizontally at y≈150.
-3. Use type "leaf" for details/actions/examples under each branch. Position at y≈300 or y≈450.
-4. Generate 10-18 total nodes for a comprehensive diagram.
-5. Space nodes horizontally with at least 200px gaps to avoid overlaps. Use the full width from x=0 to x=800.
-6. Every node ID must be a unique string number ("1", "2", "3", ...).
-7. Keep labels concise — maximum 5 words per label.
+1. Generate 8-15 total nodes for a comprehensive diagram.
+2. Every node ID must be a unique string number ("1", "2", "3", ...).
+3. Keep labels concise — maximum 5 words per label.
+4. NO COORDINATES: NEVER output 'position' or 'x/y' values. The frontend calculates these mathematically.
+5. Use type "input" for the starting node, and "default" for the rest.
 
 RULES FOR EDGES:
-1. Every non-root node MUST have exactly one incoming edge from its parent.
-2. Edge IDs should follow the pattern "e{source}-{target}".
-3. The graph should be a clean tree — no cycles, no cross-links.
-4. CRITICAL: Every 'source' and 'target' value in the 'edges' array MUST exactly match an existing 'id' from the 'nodes' array. All IDs must be strings. If you create an edge, the source and target nodes MUST exist.
+1. Edge IDs should follow the pattern "e{source}-{target}".
+2. CRITICAL: Every 'source' and 'target' value in the 'edges' array MUST exactly match an existing 'id' from the 'nodes' array. All IDs must be strings. If you create an edge, the source and target nodes MUST exist.
 
-DIAGRAM TYPE GUIDANCE:
-- For "mind map": Create a radial tree spreading outward from the root.
-- For "flowchart": Create a top-to-bottom sequential flow with decision branches.
-- For "concept map": Create interconnected concepts with labeled relationships.
+DIAGRAM TYPE & CHRONOLOGY GUIDANCE:
+- For "mindmap" (Concept Breakdown): Categorize ideas and hierarchy. Set "suggestedLayout": "LR".
+- For "flowchart" (Step-by-Step Process): STRICT CHRONOLOGY. You MUST create a linear chain of logic for algorithms, timelines, and procedures. Set "suggestedLayout": "TB".
+- For "state" (Lifecycle / Continuous Loop): STRICT CHRONOLOGY. For cycles or states, ensure the final node connects back to the start node. Set "suggestedLayout": "TB".
 
 RESPOND WITH ONLY THE JSON OBJECT. NO OTHER TEXT.
 `;

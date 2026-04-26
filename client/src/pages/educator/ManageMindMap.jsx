@@ -16,7 +16,7 @@ const ManageMindMap = () => {
     // Form State
     const [topic, setTopic] = useState("");
     const [subjectDomain, setSubjectDomain] = useState("");
-    const [diagramType, setDiagramType] = useState("mind map");
+    const [diagramType, setDiagramType] = useState("mindmap");
     const [loading, setLoading] = useState(false);
 
     // Data State
@@ -162,9 +162,10 @@ const ManageMindMap = () => {
                                         onChange={(e) => setDiagramType(e.target.value)}
                                         className="input-field !py-3 cursor-pointer"
                                     >
-                                        <option value="mind map">🧠 Mind Map</option>
-                                        <option value="flowchart">↘️ Flowchart</option>
-                                        <option value="concept map">🔗 Concept Map</option>
+                                        <option value="mindmap">🧠 Concept Breakdown</option>
+                                        <option value="flowchart">↘️ Step-by-Step Process</option>
+                                        <option value="state">🔄 Lifecycle / Continuous Loop</option>
+                                        <option value="ai_decide">✨ Let AI Decide</option>
                                     </select>
                                 </div>
 
