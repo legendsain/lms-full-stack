@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import QuizResult from '../models/QuizResult.js';
 import Course from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
+import nodemailer from 'nodemailer';
 
 // ====================================================================
 // RISK CALCULATION ENGINE
@@ -176,5 +177,52 @@ export const getAtRiskStudents = async (req, res) => {
     } catch (error) {
         console.error("Analytics Error:", error);
         res.json({ success: false, message: error.message });
+    }
+};
+
+// ====================================================================
+// API: NOTIFY STUDENT (EMAIL)
+// ====================================================================
+export const notifyStudent = async (req, res) => {
+    try {
+        const { studentId, email, name, riskReasons } = req.body;
+
+        if (!email || !name) {
+            return res.json({ success: false, message: "Missing student email or name." });
+        }
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const htmlContent = `
+            <h2>Notice: At-Risk Status Alert</h2>
+            <p>Hi ${name},</p>
+            <p>Your instructor has flagged your progress as "At Risk" based on the following reasons:</p>
+            <ul>
+                ${riskReasons.map(reason => `<li>${reason}</li>`).join('')}
+            </ul>
+            <p>Please log in to your account and catch up on your coursework as soon as possible. Your success is important to us!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>Edunova Learning Platform</p>
+        `;
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Important: Action Required for Your Coursework',
+            html: htmlContent
+        });
+
+        res.json({ success: true, message: "Email sent successfully" });
+
+    } catch (error) {
+        console.error("Notify Student Error:", error);
+        res.json({ success: false, message: "Failed to send email. Ensure EMAIL_USER and EMAIL_PASS are configured." });
     }
 };

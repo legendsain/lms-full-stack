@@ -7,6 +7,32 @@ const PredictiveAnalytics = () => {
     const { backendUrl, getToken } = useContext(AppContext);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [notifyingId, setNotifyingId] = useState(null);
+
+    const handleNotify = async (student) => {
+        setNotifyingId(student.studentId);
+        try {
+            const token = await getToken();
+            const { data } = await axios.post(backendUrl + '/api/analytics/notify', {
+                studentId: student.studentId,
+                email: student.email,
+                name: student.name,
+                riskReasons: student.riskReasons
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success(`Email successfully sent to ${student.name}`);
+            } else {
+                toast.error(data.message || "Failed to send email");
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "An error occurred while sending the email");
+        } finally {
+            setNotifyingId(null);
+        }
+    };
 
     useEffect(() => {
         const fetchAnalytics = async () => {
@@ -176,10 +202,11 @@ const PredictiveAnalytics = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => toast.info(`Reminder email sent to ${student.name}`)}
-                                    className="btn-secondary !text-xs !px-3 !py-1.5 flex-shrink-0"
+                                    onClick={() => handleNotify(student)}
+                                    disabled={notifyingId === student.studentId}
+                                    className="btn-secondary !text-xs !px-3 !py-1.5 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Notify
+                                    {notifyingId === student.studentId ? "Sending..." : "Notify"}
                                 </button>
                             </div>
                         </div>
