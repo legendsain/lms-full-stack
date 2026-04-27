@@ -7,10 +7,11 @@ import {
     useNodesState,
     useEdgesState,
     Handle,
-    Position
+    Position,
+    MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import dagre from 'dagre';
+import dagre from '@dagrejs/dagre';
 
 // ====================================================================
 // DAGRE LAYOUT ENGINE
@@ -92,6 +93,10 @@ const ReactFlowDiagram = ({ diagramData, height = '550px' }) => {
         style: {
             stroke: '#a5b4fc',
             strokeWidth: 2,
+        },
+        markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#64748b',
         },
     }), []);
 
