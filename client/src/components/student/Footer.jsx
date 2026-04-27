@@ -16,13 +16,13 @@ const Footer = () => {
             </p>
             <div className="flex items-center gap-3">
               <a href="#" className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
-                <img src={assets.facebook_icon} alt="Facebook" className="w-4 h-4 opacity-60" />
+                <img src={assets.facebook_icon} alt="Facebook" className="w-6 h-6 opacity-80" />
               </a>
               <a href="#" className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
-                <img src={assets.twitter_icon} alt="Twitter" className="w-4 h-4 opacity-60" />
+                <img src={assets.twitter_icon} alt="Twitter" className="w-6 h-6 opacity-80" />
               </a>
               <a href="#" className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
-                <img src={assets.instagram_icon} alt="Instagram" className="w-4 h-4 opacity-60" />
+                <img src={assets.instagram_icon} alt="Instagram" className="w-6 h-6 opacity-80" />
               </a>
             </div>
           </div>

@@ -13,13 +13,13 @@ const Footer = () => {
       </div>
       <div className='flex items-center gap-3 max-md:mt-4'>
         <a href="#" className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-surface-200 flex items-center justify-center transition-colors">
-          <img src={assets.facebook_icon} alt="" className="w-3.5 h-3.5 opacity-50" />
+          <img src={assets.facebook_icon} alt="" className="w-5 h-5 opacity-60 invert" />
         </a>
         <a href="#" className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-surface-200 flex items-center justify-center transition-colors">
-          <img src={assets.twitter_icon} alt="" className="w-3.5 h-3.5 opacity-50" />
+          <img src={assets.twitter_icon} alt="" className="w-5 h-5 opacity-60 invert" />
         </a>
         <a href="#" className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-surface-200 flex items-center justify-center transition-colors">
-          <img src={assets.instagram_icon} alt="" className="w-3.5 h-3.5 opacity-50" />
+          <img src={assets.instagram_icon} alt="" className="w-5 h-5 opacity-60 invert" />
         </a>
       </div>
     </footer>
