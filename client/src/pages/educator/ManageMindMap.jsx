@@ -19,6 +19,23 @@ const ManageMindMap = () => {
     const [diagramType, setDiagramType] = useState("mindmap");
     const [loading, setLoading] = useState(false);
 
+    // Rotating Placeholders
+    const placeholders = [
+        "e.g., Red-Black Tree Insertion",
+        "e.g., Kubernetes Pod Lifecycle",
+        "e.g., TCP 3-Way Handshake",
+        "e.g., ACID Properties in DBMS",
+        "e.g., CPU Scheduling Algorithms"
+    ];
+    const [placeholderIdx, setPlaceholderIdx] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setPlaceholderIdx((prev) => (prev + 1) % placeholders.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Data State
     const [generatedDiagram, setGeneratedDiagram] = useState(null);
     const [savedMaps, setSavedMaps] = useState([]);
@@ -174,8 +191,8 @@ const ManageMindMap = () => {
                                     <label className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-1.5 block">Topic *</label>
                                     <input
                                         type="text"
-                                        placeholder="e.g., Photosynthesis, The React Virtual DOM"
-                                        className="input-field !py-3"
+                                        placeholder={placeholders[placeholderIdx]}
+                                        className="input-field !py-3 transition-all duration-500"
                                         value={topic}
                                         onChange={(e) => setTopic(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
@@ -186,15 +203,23 @@ const ManageMindMap = () => {
                                 <div className="md:col-span-4">
                                     <label className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-1.5 block">
                                         Subject / Domain
-                                        <span className="text-surface-300 font-normal normal-case ml-1">(optional)</span>
+                                        <span className="text-surface-300 font-normal normal-case ml-1">(CSE Only)</span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., Quantum Physics, Renaissance Art"
-                                        className="input-field !py-3"
+                                    <select
+                                        className="input-field !py-3 cursor-pointer"
                                         value={subjectDomain}
                                         onChange={(e) => setSubjectDomain(e.target.value)}
-                                    />
+                                    >
+                                        <option value="">Select Domain...</option>
+                                        <option value="Data Structures & Algorithms">Data Structures & Algorithms</option>
+                                        <option value="Operating Systems">Operating Systems</option>
+                                        <option value="Computer Networks">Computer Networks</option>
+                                        <option value="Database Management Systems">Database Management Systems</option>
+                                        <option value="System Design">System Design</option>
+                                        <option value="Software Engineering">Software Engineering</option>
+                                        <option value="Artificial Intelligence">Artificial Intelligence</option>
+                                        <option value="Cloud Computing & DevOps">Cloud Computing & DevOps</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -239,7 +264,9 @@ const ManageMindMap = () => {
                                         </button>
                                     </div>
                                 </div>
-                                <ReactFlowDiagram diagramData={generatedDiagram} height="550px" />
+                                <div className="rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner relative" style={{ backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px', backgroundColor: '#f8fafc' }}>
+                                    <ReactFlowDiagram diagramData={generatedDiagram} height="550px" />
+                                </div>
                             </div>
                         )}
                     </div>
@@ -286,7 +313,9 @@ const ManageMindMap = () => {
                                         {/* Diagram Viewer */}
                                         <div className="p-5">
                                             {map.diagramData ? (
-                                                <ReactFlowDiagram diagramData={map.diagramData} height="400px" />
+                                                <div className="rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner relative" style={{ backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px', backgroundColor: '#f8fafc' }}>
+                                                    <ReactFlowDiagram diagramData={map.diagramData} height="400px" />
+                                                </div>
                                             ) : map.mermaidSyntax ? (
                                                 <div className="bg-surface-50 rounded-xl border border-surface-200 p-6 text-center">
                                                     <p className="text-surface-500 text-sm">⚠️ Legacy Mermaid diagram — please regenerate with AI to upgrade.</p>
