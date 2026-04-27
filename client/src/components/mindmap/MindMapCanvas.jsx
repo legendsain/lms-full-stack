@@ -15,7 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { toPng } from 'html-to-image';
 import { nodeTypes } from './MindMapNodes';
-import { getLayoutedElements } from '../../hooks/useMindMapLayout';
+import { useMindMapLayout } from '../../hooks/useMindMapLayout';
 import { exportToMarkdownFile, convertToCourseOutline } from '../../utils/mindmapExport';
 import { toast } from 'react-toastify';
 
@@ -42,13 +42,18 @@ const Flow = ({ initialNodes, initialEdges, direction = 'TB' }) => {
         setSelectedNodeData(node.data);
     }, []);
 
+    const { layoutedNodes, layoutedEdges, relayout } = useMindMapLayout(initialNodes, initialEdges, { direction, engine: 'dagre' });
+
+    React.useEffect(() => {
+        if (layoutedNodes.length > 0) {
+            setNodes(layoutedNodes);
+            setEdges(layoutedEdges);
+        }
+    }, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
+
     const handleResetLayout = useCallback(() => {
-        // In Part 5, this will re-trigger the layout engine
-        const layouted = getLayoutedElements(initialNodes, initialEdges, direction);
-        setNodes(layouted.nodes);
-        setEdges(layouted.edges);
-        setTimeout(() => fitView({ padding: 0.2, duration: 800 }), 50);
-    }, [initialNodes, initialEdges, direction, setNodes, setEdges, fitView]);
+        relayout();
+    }, [relayout]);
 
     const handleExportPng = useCallback(() => {
         if (flowRef.current === null) return;
