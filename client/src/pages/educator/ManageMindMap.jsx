@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
 import MindMapCanvas from '../../components/mindmap/MindMapCanvas';
+import NotebookLMMindMap from '../../components/common/NotebookLMMindMap';
 
 const ManageMindMap = () => {
     const { courseId } = useParams();
@@ -265,7 +266,11 @@ const ManageMindMap = () => {
                                     </div>
                                 </div>
                                 <div className="rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner relative h-[550px]" style={{ backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px', backgroundColor: '#f8fafc' }}>
-                                    <MindMapCanvas initialNodes={generatedDiagram.nodes} initialEdges={generatedDiagram.edges} direction={diagramType === 'mindmap' ? 'LR' : 'TB'} />
+                                    {diagramType === 'mindmap' ? (
+                                        <NotebookLMMindMap diagramData={generatedDiagram} />
+                                    ) : (
+                                        <MindMapCanvas initialNodes={generatedDiagram.nodes} initialEdges={generatedDiagram.edges} direction={diagramType === 'mindmap' ? 'LR' : 'TB'} />
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -314,7 +319,11 @@ const ManageMindMap = () => {
                                         <div className="p-5">
                                             {map.diagramData ? (
                                                 <div className="rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner relative h-[400px]" style={{ backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px', backgroundColor: '#f8fafc' }}>
-                                                    <MindMapCanvas initialNodes={map.diagramData.nodes} initialEdges={map.diagramData.edges} />
+                                                    {map.title && (map.title.toLowerCase().includes('mindmap') || map.title.toLowerCase().includes('concept breakdown')) ? (
+                                                        <NotebookLMMindMap diagramData={map.diagramData} />
+                                                    ) : (
+                                                        <MindMapCanvas initialNodes={map.diagramData.nodes} initialEdges={map.diagramData.edges} />
+                                                    )}
                                                 </div>
                                             ) : map.mermaidSyntax ? (
                                                 <div className="bg-surface-50 rounded-xl border border-surface-200 p-6 text-center">
