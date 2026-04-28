@@ -23,6 +23,83 @@ HARD RULES:
     - "example-of" (leaf illustrating a concept)
     - "leads-to" (cross-branch progression — max 3 total)
 
+EXPECTED JSON STRUCTURE (follow this shape exactly; values are examples):
+{
+  "version": "1.0",
+  "topic": "Machine Learning",
+  "summary": "A structured overview from foundations to practical deployment.",
+  "nodes": [
+    {
+      "id": "root",
+      "type": "mindmapNode",
+      "data": {
+        "label": "Machine Learning",
+        "description": "The central topic and learning objective.",
+        "type": "root",
+        "level": 0
+      }
+    },
+    {
+      "id": "b1-foundations",
+      "type": "mindmapNode",
+      "data": {
+        "label": "Foundations",
+        "description": "Core concepts and terminology.",
+        "type": "branch",
+        "level": 1
+      },
+      "parentId": "root"
+    },
+    {
+      "id": "sb1-supervised-learning",
+      "type": "mindmapNode",
+      "data": {
+        "label": "Supervised Learning",
+        "description": "Learning from labeled data.",
+        "type": "subBranch",
+        "level": 2
+      },
+      "parentId": "b1-foundations"
+    },
+    {
+      "id": "l1-linear-regression",
+      "type": "mindmapNode",
+      "data": {
+        "label": "Linear Regression",
+        "description": "A baseline predictive model.",
+        "type": "leaf",
+        "level": 3,
+        "keywords": ["regression", "prediction"],
+        "estimatedMinutes": 30
+      },
+      "parentId": "sb1-supervised-learning"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-root-b1-foundations",
+      "source": "root",
+      "target": "b1-foundations",
+      "type": "mindmapEdge",
+      "data": { "relation": "includes" }
+    },
+    {
+      "id": "e-b1-foundations-sb1-supervised-learning",
+      "source": "b1-foundations",
+      "target": "sb1-supervised-learning",
+      "type": "mindmapEdge",
+      "data": { "relation": "includes" }
+    },
+    {
+      "id": "e-sb1-supervised-learning-l1-linear-regression",
+      "source": "sb1-supervised-learning",
+      "target": "l1-linear-regression",
+      "type": "mindmapEdge",
+      "data": { "relation": "example-of" }
+    }
+  ]
+}
+
 SELF-VERIFY BEFORE RETURNING:
 - [ ] Level-1 branches fully cover the topic (Collectively Exhaustive).
 - [ ] Zero semantic overlap between branches (Mutually Exclusive).

@@ -4,7 +4,10 @@ import { validateMindMapData } from '../utils/mindmapSchema.js';
 import crypto from 'crypto';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+const PRIMARY_MODEL_NAME = "gemini-2.5-flash-lite";
+const FALLBACK_MODEL_NAME = "gemini-1.5-flash";
+const primaryModel = genAI.getGenerativeModel({ model: PRIMARY_MODEL_NAME });
+const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL_NAME });
 
 // Simple in-memory cache. For production, use Redis.
 const cache = new Map();
@@ -14,14 +17,20 @@ const getCacheKey = (topic, audience, goal, depth) => {
     return crypto.createHash('sha256').update(`${topic}|${audience}|${goal}|${depth}`).digest('hex');
 };
 
-const callLLMWithTimeout = async (prompt) => {
+const callLLMWithTimeout = async (prompt, modelInstance) => {
     const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 25000)
     );
-    const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
+    const result = await Promise.race([modelInstance.generateContent(prompt), timeoutPromise]);
     let text = result.response.text();
     text = text.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
     return text;
+};
+
+const isServiceUnavailableError = (error) => {
+    const status = error?.status || error?.response?.status || error?.cause?.status;
+    const message = (error?.message || "").toLowerCase();
+    return status === 503 || message.includes("503") || message.includes("service unavailable") || message.includes("high demand");
 };
 
 // -----------------------------------------------------------------------------
@@ -183,7 +192,7 @@ const assignStableIds = (data) => {
     });
 };
 
-const computeMeta = (data) => {
+const computeMeta = (data, modelName = PRIMARY_MODEL_NAME) => {
     let maxDepth = 0;
     const branches = data.nodes.filter(n => n.type === 'branch').length;
     
@@ -200,7 +209,7 @@ const computeMeta = (data) => {
 
     data.meta = {
         createdAt: new Date().toISOString(),
-        model: "gemini-2.5-flash-lite",
+        model: modelName,
         depth: maxDepth,
         breadth: branches
     };
@@ -221,10 +230,12 @@ export const generateMindMapService = async ({ topic, audience = "general studen
     let data = null;
     let retries = 0;
     const maxRetries = 2;
+    let activeModel = primaryModel;
+    let activeModelName = PRIMARY_MODEL_NAME;
 
     while (retries <= maxRetries) {
         try {
-            rawJsonText = await callLLMWithTimeout(prompt);
+            rawJsonText = await callLLMWithTimeout(prompt, activeModel);
             const parsed = JSON.parse(rawJsonText);
             
             const validation = validateMindMapData(parsed);
@@ -232,13 +243,20 @@ export const generateMindMapService = async ({ topic, audience = "general studen
                 data = validation.data;
                 break; // Success!
             } else {
-                throw new Error("Zod Validation Failed: " + JSON.stringify(validation.error.errors));
+                throw new Error("Zod Validation Failed: " + validation.error.message);
             }
         } catch (error) {
             console.error(`Attempt ${retries + 1} failed:`, error.message);
             retries++;
             if (retries <= maxRetries) {
-                prompt = getRepairPrompt(error.message, rawJsonText);
+                if (isServiceUnavailableError(error) && activeModelName !== FALLBACK_MODEL_NAME) {
+                    console.warn(`Primary model unavailable (503/high-demand). Switching to fallback model: ${FALLBACK_MODEL_NAME}`);
+                    activeModel = fallbackModel;
+                    activeModelName = FALLBACK_MODEL_NAME;
+                    // Keep original prompt for transport-level failures.
+                } else {
+                    prompt = getRepairPrompt(error.message, rawJsonText);
+                }
             } else {
                 throw new Error("Failed to generate valid MindMap after maximum retries.");
             }
@@ -253,7 +271,7 @@ export const generateMindMapService = async ({ topic, audience = "general studen
         pruneOrphans(data);
         capDepthAndBreadth(data, 4, 7);
         assignStableIds(data);
-        computeMeta(data);
+        computeMeta(data, activeModelName);
 
         // Save to cache
         cache.set(cacheKey, data);
