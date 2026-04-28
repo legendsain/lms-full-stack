@@ -19,7 +19,7 @@ const getCacheKey = (topic, audience, goal, depth) => {
 
 const callLLMWithTimeout = async (prompt, modelInstance) => {
     const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 25000)
+        setTimeout(() => reject(new Error("AI is taking too long. Please try again.")), 40000)
     );
     const result = await Promise.race([modelInstance.generateContent(prompt), timeoutPromise]);
     let text = result.response.text();
@@ -31,6 +31,39 @@ const isServiceUnavailableError = (error) => {
     const status = error?.status || error?.response?.status || error?.cause?.status;
     const message = (error?.message || "").toLowerCase();
     return status === 503 || message.includes("503") || message.includes("service unavailable") || message.includes("high demand");
+};
+
+const isTimeoutError = (error) => {
+    const message = (error?.message || "").toLowerCase();
+    return message.includes("taking too long") || message.includes("timeout");
+};
+
+const isJsonOrValidationError = (error) => {
+    if (error instanceof SyntaxError) return true;
+    const message = error?.message || "";
+    return message.includes("Zod Validation Failed") || message.toLowerCase().includes("unexpected token");
+};
+
+const normalizeCandidateMindMap = (parsed) => {
+    if (!parsed || typeof parsed !== "object") return parsed;
+    if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) return parsed;
+
+    const candidates = [
+        parsed.data,
+        parsed.diagramData,
+        parsed.mindmap,
+        parsed.mindMap,
+        parsed.result,
+        parsed.output
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate && typeof candidate === "object" && Array.isArray(candidate.nodes) && Array.isArray(candidate.edges)) {
+            return candidate;
+        }
+    }
+
+    return parsed;
 };
 
 // -----------------------------------------------------------------------------
@@ -225,7 +258,8 @@ export const generateMindMapService = async ({ topic, audience = "general studen
         return cache.get(cacheKey);
     }
 
-    let prompt = getMindMapPrompt(topic, audience, goal, depth);
+    const basePrompt = getMindMapPrompt(topic, audience, goal, depth);
+    let prompt = basePrompt;
     let rawJsonText = "";
     let data = null;
     let retries = 0;
@@ -237,8 +271,9 @@ export const generateMindMapService = async ({ topic, audience = "general studen
         try {
             rawJsonText = await callLLMWithTimeout(prompt, activeModel);
             const parsed = JSON.parse(rawJsonText);
+            const normalized = normalizeCandidateMindMap(parsed);
             
-            const validation = validateMindMapData(parsed);
+            const validation = validateMindMapData(normalized);
             if (validation.success) {
                 data = validation.data;
                 break; // Success!
@@ -249,13 +284,16 @@ export const generateMindMapService = async ({ topic, audience = "general studen
             console.error(`Attempt ${retries + 1} failed:`, error.message);
             retries++;
             if (retries <= maxRetries) {
-                if (isServiceUnavailableError(error) && activeModelName !== FALLBACK_MODEL_NAME) {
+                if ((isServiceUnavailableError(error) || isTimeoutError(error)) && activeModelName !== FALLBACK_MODEL_NAME) {
                     console.warn(`Primary model unavailable (503/high-demand). Switching to fallback model: ${FALLBACK_MODEL_NAME}`);
                     activeModel = fallbackModel;
                     activeModelName = FALLBACK_MODEL_NAME;
-                    // Keep original prompt for transport-level failures.
+                    prompt = basePrompt;
+                } else if (isJsonOrValidationError(error)) {
+                    prompt = getRepairPrompt(error.message, rawJsonText || "{}");
                 } else {
-                    prompt = getRepairPrompt(error.message, rawJsonText);
+                    // For transport/runtime errors, regenerate from the original instructions.
+                    prompt = basePrompt;
                 }
             } else {
                 throw new Error("Failed to generate valid MindMap after maximum retries.");
